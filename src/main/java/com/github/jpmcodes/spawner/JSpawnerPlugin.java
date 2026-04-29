@@ -6,6 +6,7 @@ import com.github.jpmcodes.spawner.data.cache.PlayerSpawnerCache;
 import com.github.jpmcodes.spawner.data.cache.SpawnerCache;
 import com.github.jpmcodes.spawner.data.factory.SpawnerFactory;
 import com.github.jpmcodes.spawner.listeners.GeneralListener;
+import com.github.jpmcodes.spawner.tasks.SpawnerTask;
 import com.github.jpmcodes.spawner.utils.Configs;
 import lombok.Getter;
 import lombok.Setter;
@@ -38,6 +39,7 @@ public class JSpawnerPlugin extends JavaPlugin {
 
         loadCommands();
         loadListeners();
+        new SpawnerTask(this).runTaskTimer(this, 1L, Math.max(1L, getConfigs().getInt("engine-tick-interval")));
     }
 
     @Override

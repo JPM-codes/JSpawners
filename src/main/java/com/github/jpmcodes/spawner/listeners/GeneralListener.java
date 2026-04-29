@@ -14,10 +14,13 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.LinkedList;
+
+import static com.github.jpmcodes.spawner.tasks.SpawnerTask.clearStack;
 
 @RequiredArgsConstructor
 public class GeneralListener implements Listener {
@@ -127,5 +130,10 @@ public class GeneralListener implements Listener {
         ownerSpawner.getSpawners().remove(spawner);
         player.sendMessage(Messages.SPAWNER_BREAK_SUCCESS.getMessage());
         player.getInventory().addItem(spawner.getItem());
+    }
+
+    @EventHandler
+    public void onEntityDeath(EntityDeathEvent e) {
+        clearStack(e.getEntity());
     }
 }
