@@ -1,0 +1,9 @@
+name: JSpawners
+version: 1.0.0
+main: com.github.jpmcodes.spawner.JSpawnerPlugin
+description: Spawner otimizado com drops, stack, limite e mobs passivos
+authors: [Dev]
+commands:
+  spawner:
+    permission: spawner.admin
+    aliases: [spawners]

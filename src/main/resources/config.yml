@@ -1,0 +1,38 @@
+# ============================================
+#        CustomSpawners - config.yml
+# ============================================
+
+# Intervalo em ticks que o engine verifica spawners prontos
+engine-tick-interval: 1
+
+# Range (em blocos) que o jogador precisa estar para ativar o spawner
+activation-range: 16
+
+# Salvar dados a cada X segundos (async)
+auto-save-interval: 300
+
+# Limite de spawners por jogador
+spawner-limit:
+  enable: true   # false = sem limite para ninguém
+  max: 100       # -1 = sem limite também
+
+# Configurações para mobs passivos e ativos (que não atacam o jogador)
+mobs:
+  enable: true
+  disable-movement:  true  # mob fica parado
+  disable-attack:    true  # mob não causa dano
+  disable-explosion: true  # Creeper não explode
+  disable-teleport:  true  # Enderman não teleporta
+
+# Quebrar spawner com apenas silk touch
+break-spawner-with-silk-touch: true
+
+# ============================================
+#   Stack de Mobs
+# ============================================
+stack-mobs:
+  enable: true
+  stack-radius: 5
+  max-stack-size: 1000
+  # {count} = quantidade | {mob} = nome do mob
+  display-name: '&e{count}x &7{mob}'
