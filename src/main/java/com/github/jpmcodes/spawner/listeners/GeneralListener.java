@@ -166,17 +166,16 @@ public class GeneralListener implements Listener {
                     }
                 }
             } else {
-                List<ItemStack> drops = new ArrayList<>(e.getDrops());
+                List<ItemStack> vanillaDrops = new ArrayList<>(e.getDrops());
                 e.getDrops().clear();
-                for (ItemStack drop : drops) {
-                    if (drop.getType().getMaxDurability() == 0) {
-                        int totalAmount = drop.getAmount() * cont;
-                        addDropSafely(e.getDrops(), drop, totalAmount);
-                    } else {
-                        for (int i = 0; i < cont; i++) {
-                            e.getDrops().add(drop.clone());
-                        }
-                    }
+                plugin.getLogger().info("Multiplying vanilla drops for " + entity.getType() + ". Stack: " + cont + ". Original drops: " + vanillaDrops.size());
+                for (ItemStack drop : vanillaDrops) {
+                    if (drop == null || drop.getType() == Material.AIR) continue;
+                    
+                    int totalAmount = drop.getAmount() * cont;
+                    plugin.getLogger().info(" - Drop: " + drop.getType() + " x " + drop.getAmount() + " -> Total: " + totalAmount);
+                    
+                    addDropSafely(e.getDrops(), drop, totalAmount);
                 }
             }
         } else {
