@@ -58,6 +58,13 @@
             <systemPath>${project.basedir}/libs/server.jar</systemPath>
         </dependency>
         <dependency>
+            <groupId>autoitem</groupId>
+            <artifactId>autoitem</artifactId>
+            <version>1.5.2</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/JAutoItem-1.0-SNAPSHOT.jar</systemPath>
+        </dependency>
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>1.18.34</version>

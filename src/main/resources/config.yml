@@ -36,3 +36,4 @@ stack-mobs:
   max-stack-size: 1000
   # {count} = quantidade | {mob} = nome do mob
   display-name: '&e{count}x &7{mob}'
+  kill-all: true

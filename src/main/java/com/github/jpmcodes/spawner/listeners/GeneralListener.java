@@ -4,23 +4,28 @@ import com.github.jpmcodes.spawner.JSpawnerPlugin;
 import com.github.jpmcodes.spawner.data.models.CustomPlayer;
 import com.github.jpmcodes.spawner.data.models.PlayerSpawnerModel;
 import com.github.jpmcodes.spawner.data.models.SpawnerModel;
+import com.github.jpmcodes.spawner.data.models.drop.DropModel;
 import com.github.jpmcodes.spawner.utils.Messages;
 import lombok.RequiredArgsConstructor;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.CreatureSpawner;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.metadata.FixedMetadataValue;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 
-import static com.github.jpmcodes.spawner.tasks.SpawnerTask.clearStack;
 
 @RequiredArgsConstructor
 public class GeneralListener implements Listener {
@@ -84,8 +89,7 @@ public class GeneralListener implements Listener {
         playerSpawner.add(placedSpawner);
 
         item.setAmount(item.getAmount() - 1);
-        player.sendMessage(Messages.SPAWNER_PLACE_SUCCESS.getMessage()
-                .replace("{mob}", spawner.getType().name()));
+       // player.sendMessage(Messages.SPAWNER_PLACE_SUCCESS.getMessage().replace("{mob}", spawner.getType().name()));
     }
 
     @EventHandler
@@ -106,7 +110,7 @@ public class GeneralListener implements Listener {
 
         // Verifica se o jogador que está quebrando é o dono
         if (!ownerSpawner.getPlayer().getUuid().equals(player.getUniqueId())) {
-            player.sendMessage(Messages.SPAWNER_NOT_OWNER.getMessage());
+            player.sendMessage(Messages.SPAWNER_NOT_OWNER.getMessage().replace("{owner}", ownerSpawner.getPlayer().getName()));
             e.setCancelled(true);
             return;
         }
@@ -128,12 +132,127 @@ public class GeneralListener implements Listener {
         }
 
         ownerSpawner.getSpawners().remove(spawner);
-        player.sendMessage(Messages.SPAWNER_BREAK_SUCCESS.getMessage());
+        //player.sendMessage(Messages.SPAWNER_BREAK_SUCCESS.getMessage());
         player.getInventory().addItem(spawner.getItem());
     }
 
-    @EventHandler
-    public void onEntityDeath(EntityDeathEvent e) {
-        clearStack(e.getEntity());
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onDeath(EntityDeathEvent e) {
+        LivingEntity entity = e.getEntity();
+        int cont = getStackCount(entity);
+        if (cont <= 0) return;
+
+        String spawnerId = entity.hasMetadata("spawner-id") && !entity.getMetadata("spawner-id").isEmpty() ? entity.getMetadata("spawner-id").get(0).asString() : null;
+        SpawnerModel spawner = spawnerId != null ? plugin.getSpawnerCache().getByID(spawnerId) : null;
+
+        if (plugin.getConfigs().getBoolean("stack-mobs.kill-all") && entity.getKiller() != null && !entity.getKiller().isSneaking()) {
+            e.setDroppedExp(e.getDroppedExp() * cont);
+
+            if (spawner != null && spawner.getDrops() != null && !spawner.getDrops().isEmpty()) {
+                e.getDrops().clear();
+                for (int i = 0; i < cont; i++) {
+                    for (DropModel dropModel : spawner.getDrops()) {
+                        if (Math.random() <= dropModel.getChance()) {
+                            int amount = dropModel.getMinAmount();
+                            if (dropModel.getMaxAmount() > dropModel.getMinAmount()) {
+                                amount += (int) (Math.random() * (dropModel.getMaxAmount() - dropModel.getMinAmount() + 1));
+                            }
+                            if (amount > 0) {
+                                ItemStack item = dropModel.getItem().clone();
+                                item.setAmount(amount);
+                                addDropSafely(e.getDrops(), item);
+                            }
+                        }
+                    }
+                }
+            } else {
+                List<ItemStack> drops = new ArrayList<>(e.getDrops());
+                e.getDrops().clear();
+                for (ItemStack drop : drops) {
+                    if (drop.getType().getMaxDurability() == 0) {
+                        int totalAmount = drop.getAmount() * cont;
+                        addDropSafely(e.getDrops(), drop, totalAmount);
+                    } else {
+                        for (int i = 0; i < cont; i++) {
+                            e.getDrops().add(drop.clone());
+                        }
+                    }
+                }
+            }
+        } else {
+            if (spawner != null && spawner.getDrops() != null && !spawner.getDrops().isEmpty()) {
+                e.getDrops().clear();
+                for (DropModel dropModel : spawner.getDrops()) {
+                    if (Math.random() <= dropModel.getChance()) {
+                        int amount = dropModel.getMinAmount();
+                        if (dropModel.getMaxAmount() > dropModel.getMinAmount()) {
+                            amount += (int) (Math.random() * (dropModel.getMaxAmount() - dropModel.getMinAmount() + 1));
+                        }
+                        if (amount > 0) {
+                            ItemStack item = dropModel.getItem().clone();
+                            item.setAmount(amount);
+                            addDropSafely(e.getDrops(), item);
+                        }
+                    }
+                }
+            }
+
+            if (cont > 1) {
+                LivingEntity spawned = (LivingEntity) entity.getWorld().spawnEntity(entity.getLocation(), e.getEntityType());
+                spawned.setCustomName(plugin.getConfigs().getString("stack-mobs.display-name")
+                        .replace("&", "§")
+                        .replace("{mob}", entity.getType().name())
+                        .replace("{count}", String.valueOf(--cont)));
+                spawned.setCustomNameVisible(true);
+                spawned.setMetadata("stack-spawner", new FixedMetadataValue(plugin, cont));
+                if (spawnerId != null) {
+                    spawned.setMetadata("spawner-id", new FixedMetadataValue(plugin, spawnerId));
+                }
+            }
+        }
+    }
+
+    private int getStackCount(LivingEntity entity) {
+        if (entity.hasMetadata("stack-spawner")) {
+            return entity.getMetadata("stack-spawner").get(0).asInt();
+        }
+
+        String name = entity.getCustomName();
+        if (name != null && !name.isEmpty()) {
+            try {
+                String stripped = org.bukkit.ChatColor.stripColor(name);
+                if (stripped.contains("x")) {
+                    String countPart = stripped.split("x")[0];
+                    return Integer.parseInt(countPart.trim());
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return 0;
+    }
+
+    private void addDropSafely(List<ItemStack> drops, ItemStack item) {
+        int amount = item.getAmount();
+        int maxStack = item.getType().getMaxStackSize();
+        if (maxStack <= 0) maxStack = 64;
+
+        while (amount > 0) {
+            ItemStack clone = item.clone();
+            clone.setAmount(Math.min(amount, maxStack));
+            drops.add(clone);
+            amount -= clone.getAmount();
+        }
+    }
+
+    private void addDropSafely(List<ItemStack> drops, ItemStack original, int totalAmount) {
+        int maxStack = original.getType().getMaxStackSize();
+        if (maxStack <= 0) maxStack = 64;
+
+        while (totalAmount > 0) {
+            ItemStack clone = original.clone();
+            clone.setAmount(Math.min(totalAmount, maxStack));
+            drops.add(clone);
+            totalAmount -= clone.getAmount();
+        }
     }
 }

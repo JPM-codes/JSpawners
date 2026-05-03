@@ -4,19 +4,25 @@
 # ============================================
 spawners:
   zombie:
+    # Tipo do spawner
     type: ZOMBIE
+    # Item do mob spawner
     item:
       material: MOB_SPAWNER
       data: 0
       name: '&aSpawner de Zumbi'
       lore:
         - '&7Este spawner gera zumbis.'
+    # Delay minimo para gerar mobs
     min-delay: 200
+    # Delay maximo para gerar mobs
     max-delay: 800
+    # Quantidade de mobs que irão nascer por rodada
     spawn-count: 4
+    # A distancia
     spawn-range: 4
     drops:
-      enable: true
+      enable: false
       list:
         - material: ROTTEN_FLESH
           name: 'Carne Podre'
@@ -49,7 +55,7 @@ spawners:
     spawn-count: 4
     spawn-range: 4
     drops:
-      enable: true
+      enable: false
       list:
         - material: ARROW
           min-amount: 0

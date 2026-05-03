@@ -1,11 +1,13 @@
 package com.github.jpmcodes.spawner;
 
+import com.github.jpmcodes.spawner.commands.SetMobCommand;
 import com.github.jpmcodes.spawner.commands.SpawnerCommand;
 import com.github.jpmcodes.spawner.data.cache.CustomPlayerCache;
 import com.github.jpmcodes.spawner.data.cache.PlayerSpawnerCache;
 import com.github.jpmcodes.spawner.data.cache.SpawnerCache;
 import com.github.jpmcodes.spawner.data.factory.SpawnerFactory;
 import com.github.jpmcodes.spawner.listeners.GeneralListener;
+import com.github.jpmcodes.spawner.listeners.MobRestricoesListener;
 import com.github.jpmcodes.spawner.tasks.SpawnerTask;
 import com.github.jpmcodes.spawner.utils.Configs;
 import lombok.Getter;
@@ -28,6 +30,7 @@ public class JSpawnerPlugin extends JavaPlugin {
     private Configs spawnerConfig;
     private Configs messagesConfig;
     private Configs configs;
+    private Configs savesConfig;
 
     @Getter
     private static JSpawnerPlugin instance;
@@ -39,6 +42,7 @@ public class JSpawnerPlugin extends JavaPlugin {
 
         loadCommands();
         loadListeners();
+
         new SpawnerTask(this).runTaskTimer(this, 1L, Math.max(1L, getConfigs().getInt("engine-tick-interval")));
     }
 
@@ -50,10 +54,12 @@ public class JSpawnerPlugin extends JavaPlugin {
 
     private void loadListeners() {
         getServer().getPluginManager().registerEvents(new GeneralListener(this), this);
+        getServer().getPluginManager().registerEvents(new MobRestricoesListener(this), this);
     }
 
     private void loadCommands() {
         getCommand("spawner").setExecutor(new SpawnerCommand(this));
+        getCommand("setmob").setExecutor(new SetMobCommand(this));
     }
 
     private void loadFactory() {
@@ -76,5 +82,8 @@ public class JSpawnerPlugin extends JavaPlugin {
 
         configs = new Configs("config.yml", this);
         if (!configs.exists()) configs.saveDefaultConfig();
+
+        savesConfig = new Configs("saves.yml", this);
+        if (!savesConfig.exists()) savesConfig.saveDefaultConfig();
     }
 }
