@@ -22,25 +22,11 @@ spawners:
     # A distancia
     spawn-range: 4
     drops:
-      enable: false
       list:
         - material: ROTTEN_FLESH
-          name: 'Carne Podre'
-          lore:
-            - '§7Carne de zumbi, não é muito nutritiva...'
-            - '§7Pode ser usada para alimentar lobos.'
-          enchants: []
           min-amount: 1
           max-amount: 3
           chance: 1.0
-        - material: IRON_INGOT
-          min-amount: 1
-          max-amount: 1
-          chance: 0.05
-        - material: CARROT
-          min-amount: 1
-          max-amount: 1
-          chance: 0.025
 
   skeleton:
     type: SKELETON
@@ -55,17 +41,8 @@ spawners:
     spawn-count: 4
     spawn-range: 4
     drops:
-      enable: false
       list:
         - material: ARROW
           min-amount: 0
           max-amount: 2
           chance: 1.0
-        - material: BONE
-          min-amount: 0
-          max-amount: 2
-          chance: 1.0
-        - material: BOW
-          min-amount: 1
-          max-amount: 1
-          chance: 0.085

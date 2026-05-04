@@ -1,5 +1,6 @@
 package com.github.jpmcodes.spawner.listeners;
 
+import com.github.jpmcodes.autoitem.AutoItemPlugin;
 import com.github.jpmcodes.spawner.JSpawnerPlugin;
 import com.github.jpmcodes.spawner.data.models.CustomPlayer;
 import com.github.jpmcodes.spawner.data.models.PlayerSpawnerModel;
@@ -88,8 +89,6 @@ public class GeneralListener implements Listener {
         placedSpawner.setLocation(block.getLocation());
         playerSpawner.add(placedSpawner);
 
-        item.setAmount(item.getAmount() - 1);
-       // player.sendMessage(Messages.SPAWNER_PLACE_SUCCESS.getMessage().replace("{mob}", spawner.getType().name()));
     }
 
     @EventHandler
@@ -109,7 +108,7 @@ public class GeneralListener implements Listener {
         if (ownerSpawner == null) return;
 
         // Verifica se o jogador que está quebrando é o dono
-        if (!ownerSpawner.getPlayer().getUuid().equals(player.getUniqueId())) {
+        if (!ownerSpawner.getPlayer().getUuid().equals(player.getUniqueId()) && !player.isOp()) {
             player.sendMessage(Messages.SPAWNER_NOT_OWNER.getMessage().replace("{owner}", ownerSpawner.getPlayer().getName()));
             e.setCancelled(true);
             return;
@@ -140,16 +139,33 @@ public class GeneralListener implements Listener {
     public void onDeath(EntityDeathEvent e) {
         LivingEntity entity = e.getEntity();
         int cont = getStackCount(entity);
-        if (cont <= 0) return;
+        
+        if (cont <= 0) {
+            plugin.getLogger().warning("[Debug] Mob " + entity.getType() + " morreu mas o stack count foi 0 ou negativo.");
+            return;
+        }
+
+        plugin.getLogger().info("[Debug] Mob " + entity.getType() + " morreu. Stack: " + cont);
 
         String spawnerId = entity.hasMetadata("spawner-id") && !entity.getMetadata("spawner-id").isEmpty() ? entity.getMetadata("spawner-id").get(0).asString() : null;
         SpawnerModel spawner = spawnerId != null ? plugin.getSpawnerCache().getByID(spawnerId) : null;
+        
+        if (spawner != null) {
+            plugin.getLogger().info("[Debug] Spawner identificado: " + spawnerId + " (Custom drops: " + (spawner.getDrops() != null ? spawner.getDrops().size() : 0) + ")");
+        } else if (spawnerId != null) {
+            plugin.getLogger().warning("[Debug] Mob tinha ID de spawner (" + spawnerId + ") mas o spawner nao foi encontrado no cache!");
+        }
+
+        List<ItemStack> finalDrops = new ArrayList<>();
+
+        List<ItemStack> eventDrops = e.getDrops();
 
         if (plugin.getConfigs().getBoolean("stack-mobs.kill-all") && entity.getKiller() != null && !entity.getKiller().isSneaking()) {
+            plugin.getLogger().info("[Debug] Kill-all ativado para " + entity.getKiller().getName());
             e.setDroppedExp(e.getDroppedExp() * cont);
 
             if (spawner != null && spawner.getDrops() != null && !spawner.getDrops().isEmpty()) {
-                e.getDrops().clear();
+                int totalItemsGenerated = 0;
                 for (int i = 0; i < cont; i++) {
                     for (DropModel dropModel : spawner.getDrops()) {
                         if (Math.random() <= dropModel.getChance()) {
@@ -160,28 +176,33 @@ public class GeneralListener implements Listener {
                             if (amount > 0) {
                                 ItemStack item = dropModel.getItem().clone();
                                 item.setAmount(amount);
-                                addDropSafely(e.getDrops(), item);
+                                addDropSafely(finalDrops, item);
+                                totalItemsGenerated += amount;
                             }
                         }
                     }
                 }
+                plugin.getLogger().info("[Debug] Custom drops gerados: " + totalItemsGenerated + " itens totais.");
+                eventDrops.clear();
+                eventDrops.addAll(finalDrops);
             } else {
-                List<ItemStack> drops = new ArrayList<>(e.getDrops());
-                e.getDrops().clear();
-                for (ItemStack drop : drops) {
-                    if (drop.getType().getMaxDurability() == 0) {
-                        int totalAmount = drop.getAmount() * cont;
-                        addDropSafely(e.getDrops(), drop, totalAmount);
-                    } else {
-                        for (int i = 0; i < cont; i++) {
-                            e.getDrops().add(drop.clone());
-                        }
-                    }
+                List<ItemStack> vanillaDrops = new ArrayList<>(eventDrops);
+                eventDrops.clear();
+                plugin.getLogger().info("[Debug] Multiplicando drops vanilla. Originais: " + vanillaDrops.size());
+                for (ItemStack drop : vanillaDrops) {
+                    if (drop == null || drop.getType() == Material.AIR) continue;
+                    
+                    int totalAmount = drop.getAmount() * cont;
+                    plugin.getLogger().info("[Debug]  - " + drop.getType() + " x " + drop.getAmount() + " -> Total: " + totalAmount);
+
+                    addDropSafely(finalDrops, drop, totalAmount);
                 }
+                eventDrops.addAll(finalDrops);
             }
         } else {
+            plugin.getLogger().info("[Debug] Kill-all desativado ou condicao nao atingida (Sneaking ou sem Killer).");
             if (spawner != null && spawner.getDrops() != null && !spawner.getDrops().isEmpty()) {
-                e.getDrops().clear();
+                eventDrops.clear();
                 for (DropModel dropModel : spawner.getDrops()) {
                     if (Math.random() <= dropModel.getChance()) {
                         int amount = dropModel.getMinAmount();
@@ -191,30 +212,54 @@ public class GeneralListener implements Listener {
                         if (amount > 0) {
                             ItemStack item = dropModel.getItem().clone();
                             item.setAmount(amount);
-                            addDropSafely(e.getDrops(), item);
+                            addDropSafely(eventDrops, item);
                         }
                     }
                 }
             }
 
             if (cont > 1) {
+                int newCont = cont - 1;
                 LivingEntity spawned = (LivingEntity) entity.getWorld().spawnEntity(entity.getLocation(), e.getEntityType());
                 spawned.setCustomName(plugin.getConfigs().getString("stack-mobs.display-name")
                         .replace("&", "§")
                         .replace("{mob}", entity.getType().name())
-                        .replace("{count}", String.valueOf(--cont)));
+                        .replace("{count}", String.valueOf(newCont)));
                 spawned.setCustomNameVisible(true);
-                spawned.setMetadata("stack-spawner", new FixedMetadataValue(plugin, cont));
+                spawned.setMetadata("stack-spawner", new FixedMetadataValue(plugin, newCont));
+                spawned.setMetadata("mob_spawner", new FixedMetadataValue(plugin, true));
                 if (spawnerId != null) {
                     spawned.setMetadata("spawner-id", new FixedMetadataValue(plugin, spawnerId));
                 }
+                plugin.getLogger().info("[Debug] Mob restante spawnado. Novo stack: " + newCont);
             }
+        }
+        
+        int totalItemsInList = 0;
+        for (ItemStack drop : e.getDrops()) {
+            if (drop != null) totalItemsInList += drop.getAmount();
+        }
+        plugin.getLogger().info("[Debug] Lista final de drops para o evento: " + e.getDrops().size() + " stacks (" + totalItemsInList + " itens totais).");
+
+        // Integração com JAutoItem para enviar itens direto para o inventário
+        if (entity.getKiller() != null && !e.getDrops().isEmpty()) {
+            Player killer = entity.getKiller();
+            List<ItemStack> dropsToGive = new ArrayList<>(e.getDrops());
+            
+            // Limpa os drops do chão para não duplicar
+            e.getDrops().clear();
+            
+            // Entrega via API do JAutoItem
+            AutoItemPlugin.getApi().giveItems(killer, dropsToGive, entity.getLocation());
+            plugin.getLogger().info("[Debug] Itens enviados para o inventário de " + killer.getName() + " via JAutoItem.");
         }
     }
 
     private int getStackCount(LivingEntity entity) {
         if (entity.hasMetadata("stack-spawner")) {
-            return entity.getMetadata("stack-spawner").get(0).asInt();
+            int count = entity.getMetadata("stack-spawner").get(0).asInt();
+            plugin.getLogger().info("[Debug] Stack count recuperado via Metadata: " + count);
+            return count;
         }
 
         String name = entity.getCustomName();
@@ -223,11 +268,14 @@ public class GeneralListener implements Listener {
                 String stripped = org.bukkit.ChatColor.stripColor(name);
                 if (stripped.contains("x")) {
                     String countPart = stripped.split("x")[0];
-                    return Integer.parseInt(countPart.trim());
+                    int count = Integer.parseInt(countPart.trim());
+                    plugin.getLogger().info("[Debug] Stack count recuperado via Name: " + count);
+                    return count;
                 }
             } catch (Exception ignored) {
             }
         }
+        plugin.getLogger().warning("[Debug] Nao foi possivel recuperar o stack count para " + entity.getType());
         return 0;
     }
 
