@@ -161,8 +161,18 @@ public class GeneralListener implements Listener {
         List<ItemStack> eventDrops = e.getDrops();
 
         if (plugin.getConfigs().getBoolean("stack-mobs.kill-all") && entity.getKiller() != null && !entity.getKiller().isSneaking()) {
-            plugin.getLogger().info("[Debug] Kill-all ativado para " + entity.getKiller().getName());
+            Player killer = entity.getKiller();
+            plugin.getLogger().info("[Debug] Kill-all ativado para " + killer.getName());
             e.setDroppedExp(e.getDroppedExp() * cont);
+
+            // Cálculo do nível de Pilhagem (Looting)
+            int lootingLevel = 0;
+            if (killer.getItemInHand() != null) {
+                lootingLevel = killer.getItemInHand().getEnchantmentLevel(org.bukkit.enchantments.Enchantment.LOOT_BONUS_MOBS);
+            }
+            if (lootingLevel > 0) {
+                plugin.getLogger().info("[Debug] Pilhagem identificada: Nivel " + lootingLevel);
+            }
 
             if (spawner != null && spawner.getDrops() != null && !spawner.getDrops().isEmpty()) {
                 int totalItemsGenerated = 0;
@@ -173,6 +183,13 @@ public class GeneralListener implements Listener {
                             if (dropModel.getMaxAmount() > dropModel.getMinAmount()) {
                                 amount += (int) (Math.random() * (dropModel.getMaxAmount() - dropModel.getMinAmount() + 1));
                             }
+                            
+                            // Aplicar bônus de Pilhagem nos drops customizados
+                            // Logica: Cada nível de pilhagem pode adicionar entre 0 e 1 item extra (simulando vanilla)
+                            if (lootingLevel > 0 && amount > 0) {
+                                amount += (int) (Math.random() * (lootingLevel + 1));
+                            }
+
                             if (amount > 0) {
                                 ItemStack item = dropModel.getItem().clone();
                                 item.setAmount(amount);
@@ -182,7 +199,7 @@ public class GeneralListener implements Listener {
                         }
                     }
                 }
-                plugin.getLogger().info("[Debug] Custom drops gerados: " + totalItemsGenerated + " itens totais.");
+                plugin.getLogger().info("[Debug] Custom drops gerados: " + totalItemsGenerated + " itens totais (Pilhagem inclusa).");
                 eventDrops.clear();
                 eventDrops.addAll(finalDrops);
             } else {
@@ -201,6 +218,13 @@ public class GeneralListener implements Listener {
             }
         } else {
             plugin.getLogger().info("[Debug] Kill-all desativado ou condicao nao atingida (Sneaking ou sem Killer).");
+            
+            // Cálculo do nível de Pilhagem (Looting) para morte individual
+            int lootingLevel = 0;
+            if (entity.getKiller() != null && entity.getKiller().getItemInHand() != null) {
+                lootingLevel = entity.getKiller().getItemInHand().getEnchantmentLevel(org.bukkit.enchantments.Enchantment.LOOT_BONUS_MOBS);
+            }
+
             if (spawner != null && spawner.getDrops() != null && !spawner.getDrops().isEmpty()) {
                 eventDrops.clear();
                 for (DropModel dropModel : spawner.getDrops()) {
@@ -209,6 +233,12 @@ public class GeneralListener implements Listener {
                         if (dropModel.getMaxAmount() > dropModel.getMinAmount()) {
                             amount += (int) (Math.random() * (dropModel.getMaxAmount() - dropModel.getMinAmount() + 1));
                         }
+
+                        // Pilhagem para drop customizado individual
+                        if (lootingLevel > 0 && amount > 0) {
+                            amount += (int) (Math.random() * (lootingLevel + 1));
+                        }
+
                         if (amount > 0) {
                             ItemStack item = dropModel.getItem().clone();
                             item.setAmount(amount);
