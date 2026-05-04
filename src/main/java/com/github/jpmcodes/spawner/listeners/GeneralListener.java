@@ -1,5 +1,6 @@
 package com.github.jpmcodes.spawner.listeners;
 
+import com.github.jpmcodes.autoitem.AutoItemPlugin;
 import com.github.jpmcodes.spawner.JSpawnerPlugin;
 import com.github.jpmcodes.spawner.data.models.CustomPlayer;
 import com.github.jpmcodes.spawner.data.models.PlayerSpawnerModel;
@@ -88,8 +89,6 @@ public class GeneralListener implements Listener {
         placedSpawner.setLocation(block.getLocation());
         playerSpawner.add(placedSpawner);
 
-        item.setAmount(item.getAmount() - 1);
-       // player.sendMessage(Messages.SPAWNER_PLACE_SUCCESS.getMessage().replace("{mob}", spawner.getType().name()));
     }
 
     @EventHandler
@@ -109,7 +108,7 @@ public class GeneralListener implements Listener {
         if (ownerSpawner == null) return;
 
         // Verifica se o jogador que está quebrando é o dono
-        if (!ownerSpawner.getPlayer().getUuid().equals(player.getUniqueId())) {
+        if (!ownerSpawner.getPlayer().getUuid().equals(player.getUniqueId()) && !player.isOp()) {
             player.sendMessage(Messages.SPAWNER_NOT_OWNER.getMessage().replace("{owner}", ownerSpawner.getPlayer().getName()));
             e.setCancelled(true);
             return;
@@ -157,12 +156,15 @@ public class GeneralListener implements Listener {
             plugin.getLogger().warning("[Debug] Mob tinha ID de spawner (" + spawnerId + ") mas o spawner nao foi encontrado no cache!");
         }
 
+        List<ItemStack> finalDrops = new ArrayList<>();
+
+        List<ItemStack> eventDrops = e.getDrops();
+
         if (plugin.getConfigs().getBoolean("stack-mobs.kill-all") && entity.getKiller() != null && !entity.getKiller().isSneaking()) {
             plugin.getLogger().info("[Debug] Kill-all ativado para " + entity.getKiller().getName());
             e.setDroppedExp(e.getDroppedExp() * cont);
 
             if (spawner != null && spawner.getDrops() != null && !spawner.getDrops().isEmpty()) {
-                e.getDrops().clear();
                 int totalItemsGenerated = 0;
                 for (int i = 0; i < cont; i++) {
                     for (DropModel dropModel : spawner.getDrops()) {
@@ -174,30 +176,33 @@ public class GeneralListener implements Listener {
                             if (amount > 0) {
                                 ItemStack item = dropModel.getItem().clone();
                                 item.setAmount(amount);
-                                addDropSafely(e.getDrops(), item);
+                                addDropSafely(finalDrops, item);
                                 totalItemsGenerated += amount;
                             }
                         }
                     }
                 }
                 plugin.getLogger().info("[Debug] Custom drops gerados: " + totalItemsGenerated + " itens totais.");
+                eventDrops.clear();
+                eventDrops.addAll(finalDrops);
             } else {
-                List<ItemStack> vanillaDrops = new ArrayList<>(e.getDrops());
-                e.getDrops().clear();
+                List<ItemStack> vanillaDrops = new ArrayList<>(eventDrops);
+                eventDrops.clear();
                 plugin.getLogger().info("[Debug] Multiplicando drops vanilla. Originais: " + vanillaDrops.size());
                 for (ItemStack drop : vanillaDrops) {
                     if (drop == null || drop.getType() == Material.AIR) continue;
                     
                     int totalAmount = drop.getAmount() * cont;
                     plugin.getLogger().info("[Debug]  - " + drop.getType() + " x " + drop.getAmount() + " -> Total: " + totalAmount);
-                    
-                    addDropSafely(e.getDrops(), drop, totalAmount);
+
+                    addDropSafely(finalDrops, drop, totalAmount);
                 }
+                eventDrops.addAll(finalDrops);
             }
         } else {
             plugin.getLogger().info("[Debug] Kill-all desativado ou condicao nao atingida (Sneaking ou sem Killer).");
             if (spawner != null && spawner.getDrops() != null && !spawner.getDrops().isEmpty()) {
-                e.getDrops().clear();
+                eventDrops.clear();
                 for (DropModel dropModel : spawner.getDrops()) {
                     if (Math.random() <= dropModel.getChance()) {
                         int amount = dropModel.getMinAmount();
@@ -207,7 +212,7 @@ public class GeneralListener implements Listener {
                         if (amount > 0) {
                             ItemStack item = dropModel.getItem().clone();
                             item.setAmount(amount);
-                            addDropSafely(e.getDrops(), item);
+                            addDropSafely(eventDrops, item);
                         }
                     }
                 }
@@ -222,13 +227,32 @@ public class GeneralListener implements Listener {
                         .replace("{count}", String.valueOf(newCont)));
                 spawned.setCustomNameVisible(true);
                 spawned.setMetadata("stack-spawner", new FixedMetadataValue(plugin, newCont));
+                spawned.setMetadata("mob_spawner", new FixedMetadataValue(plugin, true));
                 if (spawnerId != null) {
                     spawned.setMetadata("spawner-id", new FixedMetadataValue(plugin, spawnerId));
                 }
                 plugin.getLogger().info("[Debug] Mob restante spawnado. Novo stack: " + newCont);
             }
         }
-        plugin.getLogger().info("[Debug] Lista final de drops para o evento: " + e.getDrops().size() + " stacks de itens.");
+        
+        int totalItemsInList = 0;
+        for (ItemStack drop : e.getDrops()) {
+            if (drop != null) totalItemsInList += drop.getAmount();
+        }
+        plugin.getLogger().info("[Debug] Lista final de drops para o evento: " + e.getDrops().size() + " stacks (" + totalItemsInList + " itens totais).");
+
+        // Integração com JAutoItem para enviar itens direto para o inventário
+        if (entity.getKiller() != null && !e.getDrops().isEmpty()) {
+            Player killer = entity.getKiller();
+            List<ItemStack> dropsToGive = new ArrayList<>(e.getDrops());
+            
+            // Limpa os drops do chão para não duplicar
+            e.getDrops().clear();
+            
+            // Entrega via API do JAutoItem
+            AutoItemPlugin.getApi().giveItems(killer, dropsToGive, entity.getLocation());
+            plugin.getLogger().info("[Debug] Itens enviados para o inventário de " + killer.getName() + " via JAutoItem.");
+        }
     }
 
     private int getStackCount(LivingEntity entity) {
