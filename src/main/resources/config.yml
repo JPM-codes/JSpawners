@@ -2,6 +2,17 @@
 #        CustomSpawners - config.yml
 # ============================================
 
+# Banco de dados
+database:
+  # Se estiver em false irá ativar o SQLite, caso estiver true irá ativar HikariCP
+  enable: false
+  data:
+    host: '0.0.0.0'
+    port: 3306
+    username: 'root'
+    password: 'root'
+    database: 'minecraft'
+
 # Intervalo em ticks que o engine verifica spawners prontos
 engine-tick-interval: 1
 
@@ -37,3 +48,6 @@ stack-mobs:
   # {count} = quantidade | {mob} = nome do mob
   display-name: '&e{count}x &7{mob}'
   kill-all: true
+
+# Debug (Este opção pode floodar se console)
+debug: false

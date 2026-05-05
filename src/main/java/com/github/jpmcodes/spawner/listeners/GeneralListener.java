@@ -6,11 +6,11 @@ import com.github.jpmcodes.spawner.data.models.CustomPlayer;
 import com.github.jpmcodes.spawner.data.models.PlayerSpawnerModel;
 import com.github.jpmcodes.spawner.data.models.SpawnerModel;
 import com.github.jpmcodes.spawner.data.models.drop.DropModel;
+import com.github.jpmcodes.spawner.utils.Debug;
 import com.github.jpmcodes.spawner.utils.Messages;
 import lombok.RequiredArgsConstructor;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
-import org.bukkit.block.CreatureSpawner;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -37,15 +37,25 @@ public class GeneralListener implements Listener {
     public void onPlayerJoin(PlayerJoinEvent e) {
         Player player = e.getPlayer();
         CustomPlayer customPlayer = plugin.getCustomPlayerCache().getByUUID(player.getUniqueId());
-        if (customPlayer != null) return;
 
-        plugin.getCustomPlayerCache().addCachedElements(
-                new CustomPlayer(
-                        player.getUniqueId(),
-                        player.getName()
-                )
-        );
+        if (customPlayer == null) {
+            customPlayer = new CustomPlayer(
+                    player.getUniqueId(),
+                    player.getName()
+            );
+            plugin.getCustomPlayerCache().addCachedElements(customPlayer);
+            plugin.getCustomPlayerStorage().save(customPlayer);
+        }
 
+        // Garante que o PlayerSpawnerModel existe no cache para o jogador
+        PlayerSpawnerModel playerSpawner = plugin.getPlayerSpawnerCache().getByPlayerUUID(player.getUniqueId());
+        if (playerSpawner == null) {
+            playerSpawner = new PlayerSpawnerModel(customPlayer, new LinkedList<>());
+            plugin.getPlayerSpawnerCache().addCachedElements(playerSpawner);
+        }
+
+        // Carrega os spawners do banco de dados para o cache se necessário (on-demand)
+        plugin.getPlayerSpawnerStorage().loadForPlayer(customPlayer);
     }
 
     @EventHandler
@@ -59,8 +69,9 @@ public class GeneralListener implements Listener {
 
         PlayerSpawnerModel playerSpawner = plugin.getPlayerSpawnerCache().getByPlayerUUID(player.getUniqueId());
         if (playerSpawner == null) {
+            CustomPlayer customPlayer = plugin.getCustomPlayerCache().getByUUID(player.getUniqueId());
             playerSpawner = new PlayerSpawnerModel(
-                    plugin.getCustomPlayerCache().getByUUID(player.getUniqueId()),
+                    customPlayer,
                     new LinkedList<>()
             );
             plugin.getPlayerSpawnerCache().addCachedElements(playerSpawner);
@@ -81,14 +92,16 @@ public class GeneralListener implements Listener {
 
         if (item.getType().equals(Material.MOB_SPAWNER)) {
             //definir o tipo do mob para o spawner
-            CreatureSpawner creatureSpawner = (org.bukkit.block.CreatureSpawner) block.getState();
-            creatureSpawner.setSpawnedType(spawner.getType());
+            if (block.getState() instanceof org.bukkit.block.CreatureSpawner) {
+                org.bukkit.block.CreatureSpawner creatureSpawner = (org.bukkit.block.CreatureSpawner) block.getState();
+                creatureSpawner.setSpawnedType(spawner.getType());
+            }
         }
-
         SpawnerModel placedSpawner = spawner.clone();
         placedSpawner.setLocation(block.getLocation());
         playerSpawner.add(placedSpawner);
 
+        plugin.getPlayerSpawnerStorage().save(playerSpawner, placedSpawner);
     }
 
     @EventHandler
@@ -133,6 +146,7 @@ public class GeneralListener implements Listener {
         ownerSpawner.getSpawners().remove(spawner);
         //player.sendMessage(Messages.SPAWNER_BREAK_SUCCESS.getMessage());
         player.getInventory().addItem(spawner.getItem());
+        plugin.getPlayerSpawnerStorage().delete(ownerSpawner, spawner);
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -141,19 +155,19 @@ public class GeneralListener implements Listener {
         int cont = getStackCount(entity);
         
         if (cont <= 0) {
-            plugin.getLogger().warning("[Debug] Mob " + entity.getType() + " morreu mas o stack count foi 0 ou negativo.");
+            Debug.warning("[Debug] Mob " + entity.getType() + " morreu mas o stack count foi 0 ou negativo.");
             return;
         }
 
-        plugin.getLogger().info("[Debug] Mob " + entity.getType() + " morreu. Stack: " + cont);
+        Debug.info("[Debug] Mob " + entity.getType() + " morreu. Stack: " + cont);
 
         String spawnerId = entity.hasMetadata("spawner-id") && !entity.getMetadata("spawner-id").isEmpty() ? entity.getMetadata("spawner-id").get(0).asString() : null;
         SpawnerModel spawner = spawnerId != null ? plugin.getSpawnerCache().getByID(spawnerId) : null;
         
         if (spawner != null) {
-            plugin.getLogger().info("[Debug] Spawner identificado: " + spawnerId + " (Custom drops: " + (spawner.getDrops() != null ? spawner.getDrops().size() : 0) + ")");
+            Debug.info("[Debug] Spawner identificado: " + spawnerId + " (Custom drops: " + (spawner.getDrops() != null ? spawner.getDrops().size() : 0) + ")");
         } else if (spawnerId != null) {
-            plugin.getLogger().warning("[Debug] Mob tinha ID de spawner (" + spawnerId + ") mas o spawner nao foi encontrado no cache!");
+            Debug.warning("[Debug] Mob tinha ID de spawner (" + spawnerId + ") mas o spawner nao foi encontrado no cache!");
         }
 
         List<ItemStack> finalDrops = new ArrayList<>();
@@ -162,7 +176,7 @@ public class GeneralListener implements Listener {
 
         if (plugin.getConfigs().getBoolean("stack-mobs.kill-all") && entity.getKiller() != null && !entity.getKiller().isSneaking()) {
             Player killer = entity.getKiller();
-            plugin.getLogger().info("[Debug] Kill-all ativado para " + killer.getName());
+            Debug.info("[Debug] Kill-all ativado para " + killer.getName());
             e.setDroppedExp(e.getDroppedExp() * cont);
 
             // Cálculo do nível de Pilhagem (Looting)
@@ -171,7 +185,7 @@ public class GeneralListener implements Listener {
                 lootingLevel = killer.getItemInHand().getEnchantmentLevel(org.bukkit.enchantments.Enchantment.LOOT_BONUS_MOBS);
             }
             if (lootingLevel > 0) {
-                plugin.getLogger().info("[Debug] Pilhagem identificada: Nivel " + lootingLevel);
+                Debug.info("[Debug] Pilhagem identificada: Nivel " + lootingLevel);
             }
 
             if (spawner != null && spawner.getDrops() != null && !spawner.getDrops().isEmpty()) {
@@ -199,25 +213,25 @@ public class GeneralListener implements Listener {
                         }
                     }
                 }
-                plugin.getLogger().info("[Debug] Custom drops gerados: " + totalItemsGenerated + " itens totais (Pilhagem inclusa).");
+                Debug.info("[Debug] Custom drops gerados: " + totalItemsGenerated + " itens totais (Pilhagem inclusa).");
                 eventDrops.clear();
                 eventDrops.addAll(finalDrops);
             } else {
                 List<ItemStack> vanillaDrops = new ArrayList<>(eventDrops);
                 eventDrops.clear();
-                plugin.getLogger().info("[Debug] Multiplicando drops vanilla. Originais: " + vanillaDrops.size());
+                Debug.info("[Debug] Multiplicando drops vanilla. Originais: " + vanillaDrops.size());
                 for (ItemStack drop : vanillaDrops) {
                     if (drop == null || drop.getType() == Material.AIR) continue;
                     
                     int totalAmount = drop.getAmount() * cont;
-                    plugin.getLogger().info("[Debug]  - " + drop.getType() + " x " + drop.getAmount() + " -> Total: " + totalAmount);
+                    Debug.info("[Debug]  - " + drop.getType() + " x " + drop.getAmount() + " -> Total: " + totalAmount);
 
                     addDropSafely(finalDrops, drop, totalAmount);
                 }
                 eventDrops.addAll(finalDrops);
             }
         } else {
-            plugin.getLogger().info("[Debug] Kill-all desativado ou condicao nao atingida (Sneaking ou sem Killer).");
+            Debug.info("[Debug] Kill-all desativado ou condicao nao atingida (Sneaking ou sem Killer).");
             
             // Cálculo do nível de Pilhagem (Looting) para morte individual
             int lootingLevel = 0;
@@ -261,7 +275,7 @@ public class GeneralListener implements Listener {
                 if (spawnerId != null) {
                     spawned.setMetadata("spawner-id", new FixedMetadataValue(plugin, spawnerId));
                 }
-                plugin.getLogger().info("[Debug] Mob restante spawnado. Novo stack: " + newCont);
+                Debug.info("[Debug] Mob restante spawnado. Novo stack: " + newCont);
             }
         }
         
@@ -269,7 +283,7 @@ public class GeneralListener implements Listener {
         for (ItemStack drop : e.getDrops()) {
             if (drop != null) totalItemsInList += drop.getAmount();
         }
-        plugin.getLogger().info("[Debug] Lista final de drops para o evento: " + e.getDrops().size() + " stacks (" + totalItemsInList + " itens totais).");
+        Debug.info("[Debug] Lista final de drops para o evento: " + e.getDrops().size() + " stacks (" + totalItemsInList + " itens totais).");
 
         // Integração com JAutoItem para enviar itens direto para o inventário
         if (entity.getKiller() != null && !e.getDrops().isEmpty()) {
@@ -281,14 +295,14 @@ public class GeneralListener implements Listener {
             
             // Entrega via API do JAutoItem
             AutoItemPlugin.getApi().giveItems(killer, dropsToGive, entity.getLocation());
-            plugin.getLogger().info("[Debug] Itens enviados para o inventário de " + killer.getName() + " via JAutoItem.");
+            Debug.info("[Debug] Itens enviados para o inventário de " + killer.getName() + " via JAutoItem.");
         }
     }
 
     private int getStackCount(LivingEntity entity) {
         if (entity.hasMetadata("stack-spawner")) {
             int count = entity.getMetadata("stack-spawner").get(0).asInt();
-            plugin.getLogger().info("[Debug] Stack count recuperado via Metadata: " + count);
+            Debug.info("[Debug] Stack count recuperado via Metadata: " + count);
             return count;
         }
 
@@ -299,13 +313,13 @@ public class GeneralListener implements Listener {
                 if (stripped.contains("x")) {
                     String countPart = stripped.split("x")[0];
                     int count = Integer.parseInt(countPart.trim());
-                    plugin.getLogger().info("[Debug] Stack count recuperado via Name: " + count);
+                    Debug.info("[Debug] Stack count recuperado via Name: " + count);
                     return count;
                 }
             } catch (Exception ignored) {
             }
         }
-        plugin.getLogger().warning("[Debug] Nao foi possivel recuperar o stack count para " + entity.getType());
+        Debug.warning("[Debug] Nao foi possivel recuperar o stack count para " + entity.getType());
         return 0;
     }
 

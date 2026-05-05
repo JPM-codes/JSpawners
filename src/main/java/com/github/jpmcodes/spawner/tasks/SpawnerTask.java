@@ -83,7 +83,7 @@ public class SpawnerTask extends BukkitRunnable {
                         stackedTarget.setCustomNameVisible(true);
 
 
-                        if (plugin.getConfig().getBoolean("mobs.disable-movement")) {
+                        if (plugin.getConfigs().getConfig().getBoolean("mobs.disable-movement")) {
                             stackedTarget.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, Integer.MAX_VALUE, 100));
                         }
                         stackedTarget.setMetadata("mob_spawner", new FixedMetadataValue(plugin, true));
@@ -100,7 +100,7 @@ public class SpawnerTask extends BukkitRunnable {
                                 .replace("{mob}", spawner.getType().name()));
                         livingEntity.setCustomNameVisible(true);
 
-                        if (plugin.getConfig().getBoolean("mobs.disable-movement")) {
+                        if (plugin.getConfigs().getConfig().getBoolean("mobs.disable-movement")) {
                             livingEntity.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, Integer.MAX_VALUE, 100));
                         }
                         entity.setMetadata("stack-spawner", new FixedMetadataValue(plugin, amountToSpawn));

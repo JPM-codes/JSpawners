@@ -9,6 +9,7 @@ import java.util.StringJoiner;
 public class LocationSerializer {
 
     public static String toString(Location value) {
+        if (value == null || value.getWorld() == null) return "";
         return value.getWorld().getName() + ";" +
                 value.getBlockX() + ";" +
                 value.getBlockY() + ";" +
@@ -18,9 +19,10 @@ public class LocationSerializer {
     }
 
     public static Location fromString(String value) {
-        if(value.isEmpty()) return null;
+        if(value == null || value.isEmpty()) return null;
 
         final String[] split = value.split(";");
+        if (split.length < 6) return null;
 
         return new Location(
                 Bukkit.getWorld(split[0]),
@@ -34,7 +36,7 @@ public class LocationSerializer {
 
 
     public static String serialize(Location location, boolean yawAndPitch) {
-        if (location.getWorld() == null)
+        if (location == null || location.getWorld() == null)
             return null;
 
         final StringJoiner joiner = new StringJoiner(";");
@@ -48,10 +50,11 @@ public class LocationSerializer {
             joiner.add(String.valueOf(location.getPitch()));
         }
 
-        return joiner.toString().substring(0, joiner.length() - 1);
+        return joiner.toString();
     }
 
     public static String getFormattedText(Location location) {
+        if (location == null || location.getWorld() == null) return ChatColor.RED + "Localização inválida";
         String text = String.format("%s, %d, %d, %d", location.getWorld().getName(), location.getBlockX(), location.getBlockY(), location.getBlockZ());
         return ChatColor.GRAY + text;
     }
