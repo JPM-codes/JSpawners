@@ -36,42 +36,10 @@ public class SpawnerFactory {
     private void loadSpawners() {
         for (String path : spawnerConfig.getConfig().getConfigurationSection("spawners").getKeys(false)) {
             ConfigurationSection section = spawnerConfig.getConfig().getConfigurationSection("spawners." + path);
-            EntityType type = EntityType.valueOf(section.getString("type"));
-            int minDelay = section.getInt("min-delay");
-            int maxDelay = section.getInt("max-delay");
-            int spawnCount = section.getInt("spawn-count");
-            int spawnRange = section.getInt("spawn-range");
+            EntityType type = EntityType.valueOf(section.getString("type").toUpperCase());
+
             // Load drops
             List<DropModel> drops = new LinkedList<>();
-
-            boolean hasItem = section.contains("item");
-            ItemStack item = null;
-            if (hasItem) {
-                String materialString = section.getString("item.material");
-                int data = section.getInt("item.data", 0);
-                String name = section.getString("item.name", null);
-                List<String> lore = section.getStringList("item.lore");
-                List<String> enchants = section.getStringList("item.enchants");
-                Material material = Material.getMaterial(materialString.toUpperCase());
-                if (material == null) {
-                    throw new IllegalArgumentException("Material invalido no YAML para spawner " + path + ": " + materialString);
-                }
-                ItemBuilder itemBuilder = new ItemBuilder(material, 1, data);
-
-                if (name != null) {
-                    itemBuilder.name(name);
-                }
-
-                if (lore != null && !lore.isEmpty()) {
-                    itemBuilder.lore(lore);
-                }
-
-                if (enchants != null && !enchants.isEmpty()) {
-                    itemBuilder.addEnchants(enchants);
-                }
-
-                item = itemBuilder.build();
-            }
 
             // Pega a lista de mapas do YAML
             List<Map<?, ?>> mapList = section.getMapList("drops.list");
@@ -148,11 +116,6 @@ public class SpawnerFactory {
                     new SpawnerModel(
                             path,
                             type,
-                            item,
-                            minDelay,
-                            maxDelay,
-                            spawnCount,
-                            spawnRange,
                             drops,
                             null
                     )

@@ -2,8 +2,8 @@ help:
   - ''
   - ' &7Lista de comandos:'
   - ' &7/setmob <mob> &f- Define o mob de um spawner'
-  - ' &7/spawner <mob> <jogador> [quantidade] &f- Da um spawner a um jogador (admin)'
   - ' &7/spawner list &f- Lista os mobs disponíveis para spawners'
+  - ' &7/spawner reload &f- Recarrega as configurações do plugin'
   - ''
 
 no-permission: '&cVocê não tem permissão para usar este comando.'
@@ -21,9 +21,6 @@ spawner-break-success: '&a[Spawner] Você removeu seu spawner.'
 spawner-break-not-owner: '&c[Spawner] Você não pode remover o spawner de &e{owner}&c.'
 spawner-place-success: '&a[Spawner] Você colocou seu spawner de &e{mob}&a.'
 spawner-silk-touch-required: '&c[Spawner] Você precisa de uma picareta com Toque Suave para pegar este spawner.'
-
-# Limite
-spawner-limit-reached: '&c[Spawner] Limite atingido! Você já possui &e{count}&c/&e{max}&c spawners.'
 
 spawner-list:
   - '&7Mobs disponíveis para spawners:'
