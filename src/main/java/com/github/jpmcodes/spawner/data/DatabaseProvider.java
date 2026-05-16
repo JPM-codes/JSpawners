@@ -31,33 +31,41 @@ public class DatabaseProvider {
     }
 
     public void init() {
-        try
-        {
+        try {
+            HikariConfig config = new HikariConfig();
+            
             if (useMySQL) {
-                HikariConfig config = new HikariConfig();
                 config.setJdbcUrl("jdbc:mysql://" + host + ":" + port + "/" + database + "?useSSL=false");
                 config.setUsername(username);
                 config.setPassword(password);
                 config.setMaximumPoolSize(10);
                 config.setMinimumIdle(2);
-                config.setPoolName("Spawner");
-                hikari = new HikariDataSource(config);
             } else {
                 if (!SQLiteFile.exists()) {
                     SQLiteFile.getParentFile().mkdirs();
                 }
+                config.setJdbcUrl("jdbc:sqlite:" + SQLiteFile.getAbsolutePath());
+                config.setDriverClassName("org.sqlite.JDBC");
+                config.setMaximumPoolSize(1);
             }
+            
+            config.setPoolName("Spawner");
+            config.setConnectionTestQuery("SELECT 1");
+            config.addDataSourceProperty("cachePrepStmts", "true");
+            config.addDataSourceProperty("prepStmtCacheSize", "250");
+            config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+
+            hikari = new HikariDataSource(config);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     public Connection getConnection() throws SQLException {
-        if (useMySQL) {
-            return hikari.getConnection();
+        if (hikari == null) {
+            throw new SQLException("Database not initialized");
         }
-
-        return DriverManager.getConnection("jdbc:sqlite:" + SQLiteFile.getAbsolutePath());
+        return hikari.getConnection();
     }
 
     public void close() {

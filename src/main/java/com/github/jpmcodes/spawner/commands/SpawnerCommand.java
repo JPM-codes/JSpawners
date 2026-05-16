@@ -42,70 +42,16 @@ public class SpawnerCommand implements CommandExecutor, TabExecutor {
             return true;
         }
 
-        String mobID = args[0];
-        SpawnerModel spawner = plugin.getSpawnerCache().getByID(mobID);
-
-        if (spawner == null) {
-            sender.sendMessage(Messages.SPAWNER_NOT_FOUND.getMessage()
-                    .replace("{mob}", mobID));
+        if (args[0].equalsIgnoreCase("reload")) {
+            plugin.getConfigs().reloadConfig();
+            plugin.getSpawnerConfig().reloadConfig();
+            plugin.getMessagesConfig().reloadConfig();
+            plugin.getSpawnerFactory().load();
+            sender.sendMessage("§aConfigurações recarregadas com sucesso.");
             return true;
         }
 
-        Player target;
-        int amount;
-
-        // Lógica para: /spawner <mob> <quantidade>
-        if (args.length == 2) {
-            if (!(sender instanceof Player)) {
-                sender.sendMessage("§cO console precisa especificar um jogador: /spawner <mob> <jogador> <quantidade>");
-                return true;
-            }
-            target = (Player) sender;
-
-            try {
-                amount = Integer.parseInt(args[1]);
-            } catch (NumberFormatException e) {
-                sender.sendMessage("§cA quantidade precisa ser um número válido.");
-                return true;
-            }
-
-            target.getInventory().addItem(spawner.getItem());
-            target.sendMessage(Messages.SPAWNER_GIVEN_SELF.getMessage().replace("{mob}", spawner.getType().name()).replace("{amount}", String.valueOf(amount)));
-        }
-
-        // Lógica para: /spawner <mob> <player> <quantidade>
-        else if (args.length == 3) {
-            target = plugin.getServer().getPlayer(args[1]);
-
-            if (target == null) {
-                sender.sendMessage(Messages.PLAYER_NOT_FOUND.getMessage()
-                        .replace("{player}", args[1]));
-                return true;
-            }
-
-            try {
-                amount = Integer.parseInt(args[2]);
-            } catch (NumberFormatException e) {
-                sender.sendMessage("§cA quantidade precisa ser um número válido.");
-                return true;
-            }
-
-            target.getInventory().addItem(spawner.getItem());
-            sender.sendMessage(Messages.SPAWNER_GIVEN.getMessage().replace("{mob}", spawner.getType().name()).replace("{player}", target.getName()).replace("{amount}", String.valueOf(amount)));
-        }
-
-        // Caso o usuário digite argumentos demais
-        else {
-            Messages.HELP.getMessageList().forEach(sender::sendMessage);
-            return true;
-        }
-
-        if (amount <= 0) {
-            sender.sendMessage("§cA quantidade deve ser maior que zero.");
-            return true;
-        }
-
-
+        Messages.HELP.getMessageList().forEach(sender::sendMessage);
         return false;
     }
 

@@ -22,21 +22,15 @@ activation-range: 16
 # Salvar dados a cada X segundos (async)
 auto-save-interval: 300
 
-# Limite de spawners por jogador
-spawner-limit:
-  enable: true   # false = sem limite para ninguém
-  max: 100       # -1 = sem limite também
+# Configuração geral dos spawners
+spawners:
+  # Delay minimo para gerar mobs
+  min-delay: 200
+  # Delay maximo para gerar mobs
+  max-delay: 800
+  # Quantidade de mobs que irão nascer por rodada
+  spawn-count: 4
 
-# Configurações para mobs passivos e ativos (que não atacam o jogador)
-mobs:
-  enable: true
-  disable-movement:  true  # mob fica parado
-  disable-attack:    true  # mob não causa dano
-  disable-explosion: true  # Creeper não explode
-  disable-teleport:  true  # Enderman não teleporta
-
-# Quebrar spawner com apenas silk touch
-break-spawner-with-silk-touch: true
 
 # ============================================
 #   Stack de Mobs
@@ -51,3 +45,12 @@ stack-mobs:
 
 # Debug (Este opção pode floodar se console)
 debug: false
+
+# Bloquear mobs nascerem de modo natural?
+bloquear-mobs-nascerem: true
+# Mundo onde os mobs não irão nascer!
+mundo-mobs:
+  - ''
+# Region onde os mobs não irão nascer!
+region-mobs:
+  - ''

@@ -74,6 +74,20 @@
             <systemPath>${project.basedir}/libs/JAutoItem-1.0-SNAPSHOT.jar</systemPath>
         </dependency>
         <dependency>
+            <groupId>worldguard</groupId>
+            <artifactId>worldguard</artifactId>
+            <version>1.5.2</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/WorldGuard.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>worldedit</groupId>
+            <artifactId>worldedit</artifactId>
+            <version>1.5.2</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/WorldEdit.jar</systemPath>
+        </dependency>
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>1.18.34</version>

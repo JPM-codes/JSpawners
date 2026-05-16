@@ -3,43 +3,17 @@
 #   Configuração de cada tipo de spawner
 # ============================================
 spawners:
+  # Tipo do mob
   zombie:
-    # Tipo do spawner
-    type: ZOMBIE
-    # Item do mob spawner
-    item:
-      material: MOB_SPAWNER
-      data: 0
-      name: '&aSpawner de Zumbi'
-      lore:
-        - '&7Este spawner gera zumbis.'
-    # Delay minimo para gerar mobs
-    min-delay: 200
-    # Delay maximo para gerar mobs
-    max-delay: 800
-    # Quantidade de mobs que irão nascer por rodada
-    spawn-count: 4
-    # A distancia
-    spawn-range: 4
+    type: zombie
     drops:
       list:
         - material: ROTTEN_FLESH
           min-amount: 1
           max-amount: 3
           chance: 1.0
-
   skeleton:
-    type: SKELETON
-    item:
-      material: MOB_SPAWNER
-      data: 0
-      name: '&aSpawner de Esqueleto'
-      lore:
-        - '&7Este spawner gera esqueletos.'
-    min-delay: 200
-    max-delay: 800
-    spawn-count: 4
-    spawn-range: 4
+    type: skeleton
     drops:
       list:
         - material: ARROW

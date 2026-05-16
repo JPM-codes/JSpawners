@@ -11,6 +11,7 @@ import com.github.jpmcodes.spawner.data.storage.CustomPlayerStorage;
 import com.github.jpmcodes.spawner.data.storage.PlayerSpawnerStorage;
 import com.github.jpmcodes.spawner.listeners.GeneralListener;
 import com.github.jpmcodes.spawner.listeners.MobRestricoesListener;
+import com.github.jpmcodes.spawner.listeners.SpawnMobsListener;
 import com.github.jpmcodes.spawner.tasks.SpawnerTask;
 import com.github.jpmcodes.spawner.utils.Configs;
 import lombok.Getter;
@@ -58,12 +59,11 @@ public class JSpawnerPlugin extends JavaPlugin {
         );
         databaseProvider.init();
 
+        loadStorages();
         loadFactory();
 
         loadCommands();
         loadListeners();
-
-        loadStorages();
 
         new SpawnerTask(this).runTaskTimer(this, 1L, Math.max(1L, getConfigs().getInt("engine-tick-interval")));
     }
@@ -76,8 +76,8 @@ public class JSpawnerPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        customPlayerStorage.saveAll();
-        playerSpawnerStorage.saveAll();
+        if (customPlayerStorage != null) customPlayerStorage.saveAll();
+        if (playerSpawnerStorage != null) playerSpawnerStorage.saveAll();
 
         if (databaseProvider != null) {
             databaseProvider.close();
@@ -95,6 +95,7 @@ public class JSpawnerPlugin extends JavaPlugin {
     private void loadListeners() {
         getServer().getPluginManager().registerEvents(new GeneralListener(this), this);
         getServer().getPluginManager().registerEvents(new MobRestricoesListener(this), this);
+        //getServer().getPluginManager().registerEvents(new SpawnMobsListener(this), this);
     }
 
     private void loadCommands() {

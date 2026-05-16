@@ -6,7 +6,8 @@ import com.github.jpmcodes.spawner.data.cache.PlayerSpawnerCache;
 import com.github.jpmcodes.spawner.data.models.CustomPlayer;
 import com.github.jpmcodes.spawner.data.models.PlayerSpawnerModel;
 import com.github.jpmcodes.spawner.data.models.SpawnerModel;
-import com.github.jpmcodes.spawner.utils.LocationSerializer;
+import com.github.jpmcodes.spawner.utils.LocationUtils;
+
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -27,8 +28,8 @@ public class PlayerSpawnerStorage {
 
     private void createTable() {
         String sql = "CREATE TABLE IF NOT EXISTS player_spawners(player_uuid VARCHAR(36) NOT NULL, spawner_id VARCHAR(36) NOT NULL, spawner_location VARCHAR(255) PRIMARY KEY)";
-        try (Connection conn = database.getConnection()) {
-            PreparedStatement statement = conn.prepareStatement(sql);
+        try (Connection conn = database.getConnection();
+             PreparedStatement statement = conn.prepareStatement(sql)) {
             statement.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -67,7 +68,7 @@ public class PlayerSpawnerStorage {
 
                     // Verifica se já não carregamos esse spawner (evitar duplicatas no cache)
                     final String finalLoc = locationString;
-                    if (playerModel.getSpawners().stream().anyMatch(s -> LocationSerializer.toString(s.getLocation()).equals(finalLoc))) {
+                    if (playerModel.getSpawners().stream().anyMatch(s -> LocationUtils.toString(s.getLocation()).equals(finalLoc))) {
                         continue;
                     }
 
@@ -75,7 +76,7 @@ public class PlayerSpawnerStorage {
                     if (spawner == null) continue;
 
                     SpawnerModel spawnerClone = spawner.clone();
-                    org.bukkit.Location loc = LocationSerializer.fromString(locationString);
+                    org.bukkit.Location loc = LocationUtils.fromString(locationString);
                     
                     if (loc == null || loc.getWorld() == null) {
                         continue;
@@ -98,33 +99,34 @@ public class PlayerSpawnerStorage {
              PreparedStatement statement = connection.prepareStatement(sql)) {
             
             statement.setString(1, customPlayer.getUuid().toString());
-            ResultSet resultSet = statement.executeQuery();
-
-            PlayerSpawnerModel playerModel = plugin.getPlayerSpawnerCache().getByPlayerUUID(customPlayer.getUuid());
-            if (playerModel == null) {
-                playerModel = new PlayerSpawnerModel(customPlayer, new ArrayList<>());
-                plugin.getPlayerSpawnerCache().addCachedElements(playerModel);
-            }
-
-            while (resultSet.next()) {
-                String idSpawner = resultSet.getString("spawner_id");
-                String locationString = resultSet.getString("spawner_location");
-
-                // Evitar duplicados
-                final String finalLoc = locationString;
-                if (playerModel.getSpawners().stream().anyMatch(s -> LocationSerializer.toString(s.getLocation()).equals(finalLoc))) {
-                    continue;
+            
+            try (ResultSet resultSet = statement.executeQuery()) {
+                PlayerSpawnerModel playerModel = plugin.getPlayerSpawnerCache().getByPlayerUUID(customPlayer.getUuid());
+                if (playerModel == null) {
+                    playerModel = new PlayerSpawnerModel(customPlayer, new ArrayList<>());
+                    plugin.getPlayerSpawnerCache().addCachedElements(playerModel);
                 }
 
-                SpawnerModel spawner = plugin.getSpawnerCache().getByID(idSpawner);
-                if (spawner == null) continue;
+                while (resultSet.next()) {
+                    String idSpawner = resultSet.getString("spawner_id");
+                    String locationString = resultSet.getString("spawner_location");
 
-                org.bukkit.Location loc = LocationSerializer.fromString(locationString);
-                if (loc == null || loc.getWorld() == null) continue;
+                    // Evitar duplicados
+                    final String finalLoc = locationString;
+                    if (playerModel.getSpawners().stream().anyMatch(s -> LocationUtils.toString(s.getLocation()).equals(finalLoc))) {
+                        continue;
+                    }
 
-                SpawnerModel spawnerClone = spawner.clone();
-                spawnerClone.setLocation(loc);
-                playerModel.add(spawnerClone);
+                    SpawnerModel spawner = plugin.getSpawnerCache().getByID(idSpawner);
+                    if (spawner == null) continue;
+
+                    org.bukkit.Location loc = LocationUtils.fromString(locationString);
+                    if (loc == null || loc.getWorld() == null) continue;
+
+                    SpawnerModel spawnerClone = spawner.clone();
+                    spawnerClone.setLocation(loc);
+                    playerModel.add(spawnerClone);
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -148,7 +150,7 @@ public class PlayerSpawnerStorage {
                 
                 statement.setString(1, playerSpawner.getPlayer().getUuid().toString());
                 statement.setString(2, spawner.getId());
-                statement.setString(3, LocationSerializer.toString(spawner.getLocation()));
+                statement.setString(3, LocationUtils.toString(spawner.getLocation()));
                 statement.addBatch();
             }
             statement.executeBatch();
@@ -166,7 +168,7 @@ public class PlayerSpawnerStorage {
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, playerSpawner.getPlayer().getUuid().toString());
             statement.setString(2, spawner.getId());
-            statement.setString(3, LocationSerializer.toString(spawner.getLocation()));
+            statement.setString(3, LocationUtils.toString(spawner.getLocation()));
             statement.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -179,7 +181,7 @@ public class PlayerSpawnerStorage {
         try (Connection connection = database.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
-            statement.setString(1, LocationSerializer.toString(spawner.getLocation()));
+            statement.setString(1, LocationUtils.toString(spawner.getLocation()));
             statement.executeUpdate();
 
         } catch (SQLException e) {

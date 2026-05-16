@@ -6,7 +6,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.bukkit.Location;
 import org.bukkit.entity.EntityType;
-import org.bukkit.inventory.ItemStack;
 
 import java.util.List;
 
@@ -16,11 +15,6 @@ import java.util.List;
 public class SpawnerModel implements Cloneable {
     private final String id;
     private EntityType type;
-    private ItemStack item;
-    private int minSpawnDelay;
-    private int maxSpawnDelay;
-    private int spawnCount;
-    private int spawnRange;
     private List<DropModel> drops;
     private Location location;
 

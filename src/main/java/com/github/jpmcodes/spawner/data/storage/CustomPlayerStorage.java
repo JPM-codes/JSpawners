@@ -3,9 +3,6 @@ package com.github.jpmcodes.spawner.data.storage;
 import com.github.jpmcodes.spawner.JSpawnerPlugin;
 import com.github.jpmcodes.spawner.data.DatabaseProvider;
 import com.github.jpmcodes.spawner.data.models.CustomPlayer;
-import com.github.jpmcodes.spawner.data.models.PlayerSpawnerModel;
-import com.github.jpmcodes.spawner.data.models.SpawnerModel;
-import com.github.jpmcodes.spawner.utils.LocationSerializer;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -27,8 +24,8 @@ public class CustomPlayerStorage {
 
     private void createTable() {
         String sql = "CREATE TABLE IF NOT EXISTS players(player_uuid VARCHAR(36) PRIMARY KEY, player_name VARCHAR(255))";
-        try (Connection conn = database.getConnection()) {
-            PreparedStatement statement = conn.prepareStatement(sql);
+        try (Connection conn = database.getConnection();
+             PreparedStatement statement = conn.prepareStatement(sql)) {
             statement.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
