@@ -196,6 +196,7 @@ public class SpawnerTask extends BukkitRunnable {
 
         Chest chest = (Chest) chestBlock.getState();
         int eggCount = 0;
+        int spawnerCount = 0;
         short expectedData = type.getTypeId();
 
         // Carrega o ovo customizado de Golem na memória antes de checar o baú
@@ -206,6 +207,11 @@ public class SpawnerTask extends BukkitRunnable {
 
         for (ItemStack item : chest.getInventory().getContents()) {
             if (item == null) continue;
+
+            if (item.getType() == Material.MOB_SPAWNER) {
+                spawnerCount += item.getAmount();
+                continue;
+            }
 
             // Se o spawner for de Iron Golem, usamos a verificação da sua classe EggGolem
             if (type == EntityType.IRON_GOLEM && ovoDeGolem != null) {
@@ -222,7 +228,7 @@ public class SpawnerTask extends BukkitRunnable {
             }
         }
 
-        return eggCount;
+        return Math.min(eggCount, spawnerCount);
     }
 
 }
