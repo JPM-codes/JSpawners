@@ -1,23 +1,22 @@
 package com.github.jpmcodes.spawner.utils;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
 public abstract class Cache<V> {
-
-    private List<V> elements;
-
-    public Cache() {
-        this.elements = new LinkedList<>();
-    }
+    private List<V> elements = new LinkedList<>();
 
     public List<V> getCachedElements() {
         return this.elements;
     }
 
     public <E> List<E> cachedMap(Function<V, E> function) {
-        final List<E> copy = new LinkedList<>();
+        List<E> copy = new LinkedList<>();
 
         for (V element : this.elements) {
             copy.add(function.apply(element));
@@ -44,7 +43,7 @@ public abstract class Cache<V> {
 
     @SafeVarargs
     public final boolean removeCachedElements(V... elementArg) {
-        return this.elements.removeAll(Arrays.asList(elementArg));
+        return this.elements.removeAll(Arrays.asList((Object[]) elementArg));
     }
 
     public V getByIndex(int index) {
@@ -52,7 +51,8 @@ public abstract class Cache<V> {
     }
 
     public V getCached(Predicate<V> predicate) {
-        if (this.elements == null) this.elements = new LinkedList<>();
+        if (this.elements == null)
+            this.elements = new LinkedList<>();
 
         for (V element : this.elements) {
             if (predicate.test(element))
@@ -62,10 +62,11 @@ public abstract class Cache<V> {
     }
 
     public List<V> getCachedElements(Predicate<V> predicate) {
-        final List<V> array = new LinkedList<>();
-        for (V element : this.elements)
-            if (predicate.test(element)) array.add(element);
-
+        List<V> array = new LinkedList<>();
+        for (V element : this.elements) {
+            if (predicate.test(element))
+                array.add(element);
+        }
         return array;
     }
 
@@ -78,7 +79,7 @@ public abstract class Cache<V> {
     }
 
     public Optional<V> findAndRemove(Predicate<V> predicate) {
-        final Optional<V> optional = findCached(predicate);
+        Optional<V> optional = findCached(predicate);
         optional.ifPresent(this::removeCachedElement);
         return optional;
     }
@@ -92,7 +93,7 @@ public abstract class Cache<V> {
     }
 
     public void removeIf(Predicate<V> predicate) {
-        for (V element : elements) {
+        for (V element : this.elements) {
             if (predicate.test(element))
                 removeCachedElement(element);
         }

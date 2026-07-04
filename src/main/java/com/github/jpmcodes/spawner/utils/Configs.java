@@ -6,15 +6,13 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
-
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Generated;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -23,260 +21,299 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
-@Getter
-@Setter
 public class Configs {
+    private JavaPlugin plugin;
+    private String name;
 
-	private JavaPlugin plugin;
-	private String name;
-	private File file;
-	private FileConfiguration config;
+    @Generated
+    public void setName(String name) {
+        this.name = name;
+    }
 
+    private File file;
+    private FileConfiguration config;
 
-	public Configs setPlugin(JavaPlugin plugin) {
-		this.plugin = plugin;
-		return this;
-	}
+    @Generated
+    public void setFile(File file) {
+        this.file = file;
+    }
 
-	public Configs(String name, JavaPlugin plugin) {
-		this.plugin = plugin;
-		this.name = name;
-		reloadConfig();
-	}
+    @Generated
+    public void setConfig(FileConfiguration config) {
+        this.config = config;
+    }
 
-	public Configs(String name) {
-		this(name, null);
-	}
+    @Generated
+    public JavaPlugin getPlugin() {
+        return this.plugin;
+    }
 
-	public void reloadConfig() {
-		file = new File(plugin.getDataFolder(), name);
-		config = YamlConfiguration.loadConfiguration(file);
-		InputStream defaults = plugin.getResource(file.getName());
-		if (defaults != null) {
-			YamlConfiguration loadConfig = YamlConfiguration
-					.loadConfiguration(defaults);
-			config.setDefaults(loadConfig);
-		}
-	}
+    @Generated
+    public String getName() {
+        return this.name;
+    }
 
-	public void saveConfig() {
-		try {
-			config.save(file);
-		} catch (IOException ignored) {
+    @Generated
+    public File getFile() {
+        return this.file;
+    }
 
-		}
-	}
+    @Generated
+    public FileConfiguration getConfig() {
+        return this.config;
+    }
 
-	public String message(String path) {
-		return ChatColor.translateAlternateColorCodes('&',
-				getConfig().getString(path));
-	}
+    public Configs setPlugin(JavaPlugin plugin) {
+        this.plugin = plugin;
+        return this;
+    }
 
-	public Configs saveDefaultConfig() {
-		if (plugin.getResource(name) != null)
-			plugin.saveResource(name, false);
-		return this;
-	}
-	public void remove(String path) {
-		config.set(path, null);
-	}
+    public Configs(String name, JavaPlugin plugin) {
+        this.plugin = plugin;
+        this.name = name;
+        reloadConfig();
+    }
 
-	public Configs saveDefault() {
-		config.options().copyDefaults(true);
-		saveConfig();
-		return this;
-	}
-	public void setItem(String path, ItemStack item) {
-		setItem(create(path), item);
-	}
-	public ItemStack getItem(String path) {
-		return getItem(getSection(path));
-	}
-	public void setLocation(String path, Location location) {
-		setLocation(create(path), location);
-	}
-	public Location getLocation(String path) {
-		return getLocation(getSection(path));
-	}
-	public static void setItem(ConfigurationSection section, ItemStack item) {
-		section.set("id", item.getTypeId());
-		section.set("data", item.getDurability());
-		if (item.hasItemMeta()) {
-			ItemMeta meta = item.getItemMeta();
-			if (meta.hasDisplayName()) {
-				section.set("name", meta.getDisplayName());
-			}
-			if (meta.hasLore()) {
+    public Configs(String name) {
+        this(name, null);
+    }
+
+    public void reloadConfig() {
+        this.file = new File(this.plugin.getDataFolder(), this.name);
+        this.config = (FileConfiguration) YamlConfiguration.loadConfiguration(this.file);
+        InputStream defaults = this.plugin.getResource(this.file.getName());
+        if (defaults != null) {
+
+            YamlConfiguration loadConfig = YamlConfiguration.loadConfiguration(defaults);
+            this.config.setDefaults((Configuration) loadConfig);
+        }
+    }
+
+    public void saveConfig() {
+        try {
+            this.config.save(this.file);
+        } catch (IOException iOException) {
+        }
+    }
+
+    public String message(String path) {
+        return ChatColor.translateAlternateColorCodes('&',
+                getConfig().getString(path));
+    }
+
+    public Configs saveDefaultConfig() {
+        if (this.plugin.getResource(this.name) != null)
+            this.plugin.saveResource(this.name, false);
+        return this;
+    }
+
+    public void remove(String path) {
+        this.config.set(path, null);
+    }
+
+    public Configs saveDefault() {
+        this.config.options().copyDefaults(true);
+        saveConfig();
+        return this;
+    }
+
+    public void setItem(String path, ItemStack item) {
+        setItem(create(path), item);
+    }
+
+    public ItemStack getItem(String path) {
+        return getItem(getSection(path));
+    }
+
+    public void setLocation(String path, Location location) {
+        setLocation(create(path), location);
+    }
+
+    public Location getLocation(String path) {
+        return getLocation(getSection(path));
+    }
+
+    public static void setItem(ConfigurationSection section, ItemStack item) {
+        section.set("id", Integer.valueOf(item.getTypeId()));
+        section.set("data", Short.valueOf(item.getDurability()));
+        if (item.hasItemMeta()) {
+            ItemMeta meta = item.getItemMeta();
+            if (meta.hasDisplayName()) {
+                section.set("name", meta.getDisplayName());
+            }
+            if (meta.hasLore()) {
                 List<String> lines = new ArrayList<>(meta.getLore());
-				section.set("lore", lines);
-			}
-		}
-		StringBuilder text = new StringBuilder();
-		for (Entry<Enchantment, Integer> enchant : item.getEnchantments()
-				.entrySet()) {
-			text.append(enchant.getKey().getId()).append("-").append(enchant.getValue()).append(",");
-		}
-		section.set("enchant", text.toString());
-	}
+                section.set("lore", lines);
+            }
+        }
+        StringBuilder text = new StringBuilder();
+        for (Map.Entry<Enchantment, Integer> enchant : (Iterable<Map.Entry<Enchantment, Integer>>) item
+                .getEnchantments()
+                .entrySet()) {
+            text.append(((Enchantment) enchant.getKey()).getId()).append("-").append(enchant.getValue()).append(",");
+        }
+        section.set("enchant", text.toString());
+    }
 
-	public static void setLocation(ConfigurationSection section,
-			Location location) {
-		section.set("world", location.getWorld().getName());
-		section.set("x", location.getX());
-		section.set("y", location.getY());
-		section.set("z", location.getZ());
-		section.set("yaw", location.getYaw());
-		section.set("pitch", location.getPitch());
-	}
+    public static void setLocation(ConfigurationSection section, Location location) {
+        section.set("world", location.getWorld().getName());
+        section.set("x", Double.valueOf(location.getX()));
+        section.set("y", Double.valueOf(location.getY()));
+        section.set("z", Double.valueOf(location.getZ()));
+        section.set("yaw", Float.valueOf(location.getYaw()));
+        section.set("pitch", Float.valueOf(location.getPitch()));
+    }
 
-	public static Location getLocation(ConfigurationSection section) {
-		World world = Bukkit.getWorld(section.getString("world"));
-		double x = section.getDouble("x");
-		double y = section.getDouble("y");
-		double z = section.getDouble("z");
-		float yaw = (float) section.getDouble("yaw");
-		float pitch = (float) section.getDouble("pitch");
-		return new Location(world, x, y, z, yaw, pitch);
-	}
+    public static Location getLocation(ConfigurationSection section) {
+        World world = Bukkit.getWorld(section.getString("world"));
+        double x = section.getDouble("x");
+        double y = section.getDouble("y");
+        double z = section.getDouble("z");
+        float yaw = (float) section.getDouble("yaw");
+        float pitch = (float) section.getDouble("pitch");
+        return new Location(world, x, y, z, yaw, pitch);
+    }
 
-	public static Location toLocation(String text) {
-		String[] split = text.split(",");
-		World world = Bukkit.getWorld(split[0]);
-		double x = Double.parseDouble(split[1]);
-		double y = Double.parseDouble(split[2]);
-		double z = Double.parseDouble(split[3]);
-		float yaw = Float.parseFloat(split[4]);
-		float pitch = Float.parseFloat(split[5]);
-		return new Location(world, x, y, z, yaw, pitch);
-	}
+    public static Location toLocation(String text) {
+        String[] split = text.split(",");
+        World world = Bukkit.getWorld(split[0]);
+        double x = Double.parseDouble(split[1]);
+        double y = Double.parseDouble(split[2]);
+        double z = Double.parseDouble(split[3]);
+        float yaw = Float.parseFloat(split[4]);
+        float pitch = Float.parseFloat(split[5]);
+        return new Location(world, x, y, z, yaw, pitch);
+    }
 
-	public static String toChatMessage(String text) {
-		return ChatColor.translateAlternateColorCodes('&', text);
-	}
-	public static String saveLocation(Location location) {
-        return location.getWorld().getName() + "," +
-                location.getX() + "," +
-                location.getY() + "," +
-                location.getZ() + "," +
-                location.getYaw() + "," +
-                location.getPitch();
-	}
+    public static String toChatMessage(String text) {
+        return ChatColor.translateAlternateColorCodes('&', text);
+    }
 
-	public static String toConfigMessage(String text) {
-		return text.replace("§", "&");
-	}
+    public static String saveLocation(Location location) {
+        return location.getWorld().getName() + "," + location
+                .getX() + ","
+                + location
+                        .getY()
+                + "," + location
+                        .getZ()
+                + "," + location
+                        .getYaw()
+                + "," + location
+                        .getPitch();
+    }
 
-	public static ItemStack getItem(ConfigurationSection section) {
-		ItemStack item = new ItemStack(section.getInt("id"),
-				section.getInt("data"));
-		ItemMeta meta = item.getItemMeta();
-		if (section.contains("name")) {
-			meta.setDisplayName(toChatMessage(section.getString("name")));
-		}
-		if (section.contains("lore")) {
-			List<String> lines = new ArrayList<>();
-			for (String line : meta.getLore()) {
-				lines.add(toChatMessage(line));
-			}
-			meta.setLore(lines);
-		}
-		if (section.contains("enchant")) {
-			for (String value : section.getString("enchant").split(",")) {
-                if (value.isEmpty())
-					continue;
-				if (value.contains("-")) {
-					String[] split = value.split("-");
-					item.addUnsafeEnchantment(
-							Enchantment.getById(Integer.parseInt(split[0])),
-							Integer.parseInt(split[1]));
-				}
-			}
-		}
-		return item;
-	}
+    public static String toConfigMessage(String text) {
+        return text.replace("§", "&");
+    }
 
-	public boolean delete() {
-		return file.delete();
-	}
+    public static ItemStack getItem(ConfigurationSection section) {
+        ItemStack item = new ItemStack(section.getInt("id"), section.getInt("data"));
+        ItemMeta meta = item.getItemMeta();
+        if (section.contains("name")) {
+            meta.setDisplayName(toChatMessage(section.getString("name")));
+        }
+        if (section.contains("lore")) {
+            List<String> lines = new ArrayList<>();
+            for (String line : meta.getLore()) {
+                lines.add(toChatMessage(line));
+            }
+            meta.setLore(lines);
+        }
+        if (section.contains("enchant"))
+            for (String value : section.getString("enchant").split(",")) {
+                if (!value.isEmpty()) {
+                    if (value.contains("-")) {
+                        String[] split = value.split("-");
+                        item.addUnsafeEnchantment(
+                                Enchantment.getById(Integer.parseInt(split[0])),
+                                Integer.parseInt(split[1]));
+                    }
+                }
+            }
+        return item;
+    }
 
-	public boolean exists() {
-		return file.exists();
-	}
+    public boolean delete() {
+        return this.file.delete();
+    }
 
-	public void add(String path, Object value) {
-		config.addDefault(path, value);
-	}
+    public boolean exists() {
+        return this.file.exists();
+    }
 
-	public boolean contains(String path) {
-		return config.contains(path);
-	}
+    public void add(String path, Object value) {
+        this.config.addDefault(path, value);
+    }
 
-	public ConfigurationSection create(String path) {
-		return config.createSection(path);
-	}
+    public boolean contains(String path) {
+        return this.config.contains(path);
+    }
 
-	public Object get(String path) {
-		return config.get(path);
-	}
+    public ConfigurationSection create(String path) {
+        return this.config.createSection(path);
+    }
 
-	public boolean getBoolean(String path) {
-		return config.getBoolean(path);
-	}
+    public Object get(String path) {
+        return this.config.get(path);
+    }
 
-	public ConfigurationSection getSection(String path) {
-		return config.getConfigurationSection(path);
-	}
+    public boolean getBoolean(String path) {
+        return this.config.getBoolean(path);
+    }
 
-	public double getDouble(String path) {
-		return config.getDouble(path);
-	}
+    public ConfigurationSection getSection(String path) {
+        return this.config.getConfigurationSection(path);
+    }
 
-	public int getInt(String path) {
-		return config.getInt(path);
-	}
+    public double getDouble(String path) {
+        return this.config.getDouble(path);
+    }
 
-	public List<Integer> getIntegerList(String path) {
-		return config.getIntegerList(path);
-	}
+    public int getInt(String path) {
+        return this.config.getInt(path);
+    }
 
-	public ItemStack getItemStack(String path) {
-		return config.getItemStack(path);
-	}
+    public List<Integer> getIntegerList(String path) {
+        return this.config.getIntegerList(path);
+    }
 
-	public Set<String> getKeys(boolean deep) {
-		return config.getKeys(deep);
-	}
+    public ItemStack getItemStack(String path) {
+        return this.config.getItemStack(path);
+    }
 
-	public List<?> getList(String path) {
-		return config.getList(path);
-	}
+    public Set<String> getKeys(boolean deep) {
+        return this.config.getKeys(deep);
+    }
 
-	public long getLong(String path) {
-		return config.getLong(path);
-	}
+    public List<?> getList(String path) {
+        return this.config.getList(path);
+    }
 
-	public List<Long> getLongList(String path) {
-		return config.getLongList(path);
-	}
+    public long getLong(String path) {
+        return this.config.getLong(path);
+    }
 
-	public List<Map<?, ?>> getMapList(String path) {
-		return config.getMapList(path);
-	}
+    public List<Long> getLongList(String path) {
+        return this.config.getLongList(path);
+    }
 
-	public String getString(String path) {
-		return config.getString(path);
-	}
+    public List<Map<?, ?>> getMapList(String path) {
+        return this.config.getMapList(path);
+    }
 
-	public List<String> getStringList(String path) {
-		return config.getStringList(path);
-	}
+    public String getString(String path) {
+        return this.config.getString(path);
+    }
 
-	public Map<String, Object> getValues(boolean deep) {
-		return config.getValues(deep);
-	}
+    public List<String> getStringList(String path) {
+        return this.config.getStringList(path);
+    }
 
-	public void set(String path, Object value) {
-		config.set(path, value);
-	}
+    public Map<String, Object> getValues(boolean deep) {
+        return this.config.getValues(deep);
+    }
 
+    public void set(String path, Object value) {
+        this.config.set(path, value);
+    }
 }

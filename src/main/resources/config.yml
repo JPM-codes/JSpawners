@@ -31,6 +31,10 @@ spawners:
   # Quantidade de mobs que irão nascer por rodada
   spawn-count: 4
 
+# Mundos onde não poderá quebrar spawners
+worlds:
+  - 'spawn1'
+  - 'nether'
 
 # ============================================
 #   Stack de Mobs

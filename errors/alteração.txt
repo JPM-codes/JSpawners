@@ -1,7 +1,0 @@
-# Configurações para mobs passivos e ativos (que não atacam o jogador)
-                               mobs:
-                                 enable: true
-                                 disable-movement: true  # mob fica parado
-                                 disable-attack: true  # mob não causa dano
-                                 disable-explosion: true  # Creeper não explode
-                                 disable-teleport: true  # Enderman não teleporta

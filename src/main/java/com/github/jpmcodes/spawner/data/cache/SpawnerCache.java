@@ -1,5 +1,6 @@
 package com.github.jpmcodes.spawner.data.cache;
 
+import com.github.jpmcodes.egggolem.JEggGolemPlugin;
 import com.github.jpmcodes.spawner.data.models.SpawnerModel;
 import com.github.jpmcodes.spawner.utils.Cache;
 import org.bukkit.Location;
@@ -7,24 +8,36 @@ import org.bukkit.Material;
 import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemStack;
 
-public class SpawnerCache extends Cache<SpawnerModel> {
-
+public class SpawnerCache
+        extends Cache<SpawnerModel> {
     public SpawnerModel getByID(String id) {
-        return getCached($ -> $.getId().equalsIgnoreCase(id));
+        return (SpawnerModel) getCached($ -> $.getId().equalsIgnoreCase(id));
     }
 
     public SpawnerModel getByEgg(ItemStack item) {
-        if (item == null || item.getType() != Material.MONSTER_EGG) {
+        if (item == null) {
             return null;
         }
 
-        short data = item.getData().getData();
+        EntityType type;
+        // Verifica se o item é o ovo do golem (la ele)
+        if (JEggGolemPlugin.getInstance().getEggGolem().hasEgg(item)) {
+            type = EntityType.IRON_GOLEM;
+        } else if (item.getType() == Material.MONSTER_EGG) {
+            short data = item.getData().getData();
+            type = EntityType.fromId(data);
+        } else {
+            type = null;
+        }
 
-        EntityType type = EntityType.fromId(data);
-        if (type == null) return null;
+        if (type == null) {
+            return null;
+        }
 
-
-        return getCached($ -> $.getType() == type);
+        com.github.jpmcodes.spawner.utils.Debug.info("[Debug] Spawner lookup for type: " + type);
+        SpawnerModel model = getCached($ -> ($.getType() == type));
+        com.github.jpmcodes.spawner.utils.Debug.info("[Debug] Spawner model found: " + (model != null));
+        return model;
     }
 
     public SpawnerModel getByLocation(Location location) {

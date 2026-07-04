@@ -20,3 +20,25 @@ spawners:
           min-amount: 0
           max-amount: 2
           chance: 1.0
+        - iteminfo: '261:383'
+          min-amount: 0
+          max-amount: 1
+          chance: 0.5
+  lula:
+    type: squid
+    mcmmo-xp: 10.0
+    drops:
+      list:
+        - material: INK_SACK
+          min-amount: 1
+          max-amount: 3
+          chance: 1.0
+  iron_golem:
+    type: iron_golem
+    mcmmo-xp: 20.0
+    drops:
+      list:
+        - material: IRON_INGOT
+          min-amount: 1
+          max-amount: 3
+          chance: 1.0

@@ -1,135 +1,228 @@
 package com.github.jpmcodes.spawner.tasks;
 
+import com.github.jpmcodes.egggolem.data.EggGolem;
 import com.github.jpmcodes.spawner.JSpawnerPlugin;
+import com.github.jpmcodes.spawner.config.PluginConfigSnapshot;
 import com.github.jpmcodes.spawner.data.models.PlayerSpawnerModel;
 import com.github.jpmcodes.spawner.data.models.SpawnerModel;
 import com.github.jpmcodes.spawner.utils.Configs;
 import com.github.jpmcodes.spawner.utils.LocationUtils;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
+
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
-import org.bukkit.World;
+import org.bukkit.Material;
+import org.bukkit.block.Block;
+import org.bukkit.block.Chest;
+import org.bukkit.block.Sign;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.util.Vector;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public class SpawnerTask extends BukkitRunnable {
-
     private static final Map<String, Long> NEXT_SPAWN_TICK = new HashMap<>();
-
     private final JSpawnerPlugin plugin;
+    public static boolean isSpawning = false;
 
     public SpawnerTask(JSpawnerPlugin plugin) {
         this.plugin = plugin;
     }
 
-    @Override
     public void run() {
-        // 1. Congelar todos os mobs de spawner ativos para evitar empurrões ou movimentos residuais
-        for (World world : plugin.getServer().getWorlds()) {
-            for (Entity entity : world.getEntities()) {
-                if (entity instanceof LivingEntity && entity.hasMetadata("mob_spawner")) {
-                    entity.setVelocity(new Vector(0, 0, 0));
-                }
-            }
+        PluginConfigSnapshot cfg = this.plugin.getConfigCache().getPlugin();
+        long nowTick = this.plugin.getServer().getWorlds().isEmpty() ? 0L
+                : this.plugin.getServer().getWorlds().get(0).getFullTime();
+
+        int activationRange = cfg.getActivationRange();
+        int rangeSquared = activationRange * activationRange;
+
+        Map<String, List<Location>> playersByWorld = new HashMap<>();
+        for (Player player : this.plugin.getServer().getOnlinePlayers()) {
+            String worldName = player.getWorld().getName();
+            playersByWorld.computeIfAbsent(worldName, k -> new ArrayList<>()).add(player.getLocation());
         }
 
-        long nowTick = plugin.getServer().getWorlds().isEmpty()
-                ? 0L
-                : plugin.getServer().getWorlds().get(0).getFullTime();
-
-        int activationRange = plugin.getConfigs().getInt("activation-range");
-
-        for (PlayerSpawnerModel playerSpawner : plugin.getPlayerSpawnerCache().getCachedElements()) {
-            Player owner = plugin.getServer().getPlayer(playerSpawner.getPlayer().getName());
-            if (owner == null || !owner.isOnline() || !playerSpawner.hasSpawners()) continue;
+        for (PlayerSpawnerModel playerSpawner : this.plugin.getPlayerSpawnerCache().getCachedElements()) {
+            Map<String, SpawnerGroup> groups = new HashMap<>();
 
             for (SpawnerModel spawner : playerSpawner.getSpawners()) {
                 Location location = spawner.getLocation();
                 if (location == null || location.getWorld() == null) continue;
-                if (!owner.getWorld().equals(location.getWorld()) || owner.getLocation().distanceSquared(location) > (activationRange * activationRange))
-                    continue;
+                if (location.getBlock().getType() != org.bukkit.Material.MOB_SPAWNER) continue;
+
+                boolean hasNearbyPlayer = false;
+                List<Location> onlinePlayersInWorld = playersByWorld.get(location.getWorld().getName());
+                if (onlinePlayersInWorld != null) {
+                    for (Location pLoc : onlinePlayersInWorld) {
+                        if (pLoc.distanceSquared(location) <= rangeSquared) {
+                            hasNearbyPlayer = true;
+                            break;
+                        }
+                    }
+                }
+                if (!hasNearbyPlayer) continue;
+
+                String spawnerKey = Configs.saveLocation(location);
+                Long nextTick = NEXT_SPAWN_TICK.get(spawnerKey);
+                if (nextTick != null && nowTick < nextTick) continue;
 
                 Location spawnLocation = location;
                 String spawnPath = "locais_nascimento." + playerSpawner.getPlayer().getUuid() + "." + spawner.getType().name();
-                if (plugin.getSavesConfig().contains(spawnPath)) {
-                    spawnLocation = plugin.getSavesConfig().getLocation(spawnPath);
+                Location cachedSpawn = this.plugin.getSpawnLocationCache().get(spawnPath);
+                if (cachedSpawn != null && cachedSpawn.getWorld() != null) {
+                    spawnLocation = cachedSpawn;
                 }
 
-                String key = Configs.saveLocation(location);
-                Long nextTick = NEXT_SPAWN_TICK.get(key);
-                if (nextTick != null && nowTick < nextTick) continue;
+                if (spawnLocation.getWorld() == null) continue;
 
-                int amountToSpawn = Math.max(1, plugin.getConfigs().getInt("spawners.spawn-count"));
+                String groupKey = spawnLocation.getWorld().getName() + ":" + spawnLocation.getBlockX() + ":"
+                        + spawnLocation.getBlockY() + ":" + spawnLocation.getBlockZ() + ":" + spawner.getType().name();
 
-                LivingEntity stackedTarget = LocationUtils.getNearbyLivingEntity(spawnLocation, plugin.getConfigs().getInt("stack-mobs.stack-radius"), spawner.getType());
+                SpawnerGroup group = groups.get(groupKey);
+                if (group == null) {
+                    group = new SpawnerGroup(spawnLocation, location, spawner.getType(), spawner.getId());
+                    groups.put(groupKey, group);
+                }
+                group.spawnerKeys.add(spawnerKey);
+            }
 
-                boolean enableStack = plugin.getConfigs().getBoolean("stack-mobs.enable");
+            for (SpawnerGroup group : groups.values()) {
+                Location spawnLocation = group.location;
+                int amountToSpawn = getAmountFromChest(group.spawnerLocation, group.type);
+                if (amountToSpawn <= 0) continue;
 
-                if (enableStack) {
-                    if (stackedTarget != null) {
-                        int currentAmount = stackedTarget.hasMetadata("stack-spawner")
-                                ? stackedTarget.getMetadata("stack-spawner").get(0).asInt()
+                double searchRadius = cfg.getStackMobsRadius();
+                List<LivingEntity> nearby = LocationUtils.getNearbyLivingEntities(spawnLocation, searchRadius, group.type);
+
+                if (!nearby.isEmpty()) {
+                    LivingEntity stackedTarget = nearby.get(0);
+
+                    // Garante que o target ainda é válido
+                    if (!stackedTarget.isValid()) continue;
+
+                    int currentAmount = stackedTarget.hasMetadata("stack-spawner")
+                            ? stackedTarget.getMetadata("stack-spawner").get(0).asInt()
+                            : 1;
+
+                    for (int i = 1; i < nearby.size(); i++) {
+                        LivingEntity other = nearby.get(i);
+                        if (other == null || !other.isValid()) continue;
+                        currentAmount += other.hasMetadata("stack-spawner")
+                                ? other.getMetadata("stack-spawner").get(0).asInt()
                                 : 1;
-
-                        int newAmount = currentAmount + amountToSpawn;
-
-                        if (newAmount > plugin.getConfigs().getInt("stack-mobs.max-stack-size")) {
-                            newAmount = plugin.getConfigs().getInt("stack-mobs.max-stack-size");
-                        }
-
-                        stackedTarget.setCustomName(plugin.getConfigs().getString("stack-mobs.display-name")
-                                .replace("&", "§")
-                                .replace("{count}", String.valueOf(newAmount))
-                                .replace("{mob}", spawner.getType().name()));
-                        stackedTarget.setCustomNameVisible(true);
-
-
-                        stackedTarget.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, Integer.MAX_VALUE, 100));
-                        stackedTarget.setVelocity(new Vector(0, 0, 0));
-                        LocationUtils.setNoAI(stackedTarget);
-                        stackedTarget.setMetadata("mob_spawner", new FixedMetadataValue(plugin, true));
-                        stackedTarget.setMetadata("stack-spawner", new FixedMetadataValue(plugin, newAmount));
-                        stackedTarget.setMetadata("spawner-id", new FixedMetadataValue(plugin, spawner.getId()));
-
-                    } else {
-                        Entity entity = spawnLocation.getWorld().spawnEntity(spawnLocation, spawner.getType());
-
-                        LivingEntity livingEntity = (LivingEntity) entity;
-                        livingEntity.setCustomName(plugin.getConfigs().getString("stack-mobs.display-name")
-                                .replace("&", "§")
-                                .replace("{count}", String.valueOf(amountToSpawn))
-                                .replace("{mob}", spawner.getType().name()));
-                        livingEntity.setCustomNameVisible(true);
-
-                        livingEntity.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, Integer.MAX_VALUE, 100));
-                        entity.setVelocity(new Vector(0, 0, 0));
-                        LocationUtils.setNoAI(entity);
-                        entity.setMetadata("stack-spawner", new FixedMetadataValue(plugin, amountToSpawn));
-                        entity.setMetadata("mob_spawner", new FixedMetadataValue(plugin, true));
-                        entity.setMetadata("spawner-id", new FixedMetadataValue(plugin, spawner.getId()));
+                        other.remove();
                     }
+
+                    int newAmount = Math.min(currentAmount + amountToSpawn, cfg.getStackMobsMaxStackSize());
+
+                    LocationUtils.updateCustomName(stackedTarget, cfg.formatStackDisplayName(newAmount, group.type));
+                    LocationUtils.freeze(stackedTarget, this.plugin);
+
+                    stackedTarget.setMetadata("stack-spawner", new FixedMetadataValue(this.plugin, newAmount));
+                    stackedTarget.setMetadata("spawner-id", new FixedMetadataValue(this.plugin, group.firstSpawnerId));
+
                 } else {
-                    for (int i = 0; i < amountToSpawn; i++) {
-                        Entity entity = spawnLocation.getWorld().spawnEntity(spawnLocation, spawner.getType());
-                        entity.setVelocity(new Vector(0, 0, 0));
-                        LocationUtils.setNoAI(entity);
-                        entity.setMetadata("mob_spawner", new FixedMetadataValue(plugin, true));
-                        entity.setMetadata("spawner-id", new FixedMetadataValue(plugin, spawner.getId()));
+                    // Na hora de spawnar no SpawnerTask:
+                    SpawnerTask.isSpawning = true;
+                    Entity entity = spawnLocation.getWorld().spawnEntity(spawnLocation, group.type);
+                    SpawnerTask.isSpawning = false;
+
+                    // Garante que é uma LivingEntity antes do cast
+                    if (!(entity instanceof LivingEntity)) {
+                        entity.remove();
+                        continue;
                     }
+
+                    LivingEntity livingEntity = (LivingEntity) entity;
+                    livingEntity.removeMetadata("mcMMO: Spawned Entity", this.plugin);
+
+                    LocationUtils.updateCustomName(livingEntity, cfg.formatStackDisplayName(amountToSpawn, group.type));
+                    LocationUtils.freeze(livingEntity, this.plugin);
+
+                    livingEntity.setMetadata("stack-spawner", new FixedMetadataValue(this.plugin, amountToSpawn));
+                    livingEntity.setMetadata("spawner-id", new FixedMetadataValue(this.plugin, group.firstSpawnerId));
                 }
-                long delay = plugin.getConfigs().getInt("spawners.min-delay");
-                if (plugin.getConfigs().getInt("spawners.max-delay") > plugin.getConfigs().getInt("spawners.min-delay")) {
-                    delay += (long) (Math.random() * (plugin.getConfigs().getInt("spawners.max-delay") - plugin.getConfigs().getInt("spawners.min-delay")));
+
+                long delay = cfg.nextSpawnDelay(ThreadLocalRandom.current());
+                for (String key : group.spawnerKeys) {
+                    NEXT_SPAWN_TICK.put(key, nowTick + Math.max(1L, delay));
                 }
-                NEXT_SPAWN_TICK.put(key, nowTick + Math.max(1L, delay));
             }
         }
     }
+
+    private static class SpawnerGroup {
+        final Location location;       // local de nascimento
+        final Location spawnerLocation; // localização real do spawner
+        final org.bukkit.entity.EntityType type;
+        final String firstSpawnerId;
+        final List<String> spawnerKeys = new ArrayList<>();
+
+        SpawnerGroup(Location location, Location spawnerLocation, org.bukkit.entity.EntityType type, String firstSpawnerId) {
+            this.location = location;
+            this.spawnerLocation = spawnerLocation;
+            this.type = type;
+            this.firstSpawnerId = firstSpawnerId;
+        }
+    }
+
+    private int getAmountFromChest(Location spawnerLocation, EntityType type) {
+        Location chestLoc = spawnerLocation.clone().add(0, 1, 0);
+        Block chestBlock = chestLoc.getBlock();
+        if (chestBlock.getType() != Material.CHEST) {
+            return 0;
+        }
+
+        Location signLoc = spawnerLocation.clone().add(0, 2, 0);
+        Block signBlock = signLoc.getBlock();
+        if (signBlock.getType() != Material.SIGN_POST) {
+            return 0;
+        }
+
+        Sign sign = (Sign) signBlock.getState();
+        String signType = ChatColor.stripColor(sign.getLine(2)).trim().toUpperCase();
+        if (!signType.equals(type.name())) {
+            return 0;
+        }
+
+        Chest chest = (Chest) chestBlock.getState();
+        int eggCount = 0;
+        short expectedData = type.getTypeId();
+
+        // Carrega o ovo customizado de Golem na memória antes de checar o baú
+        EggGolem ovoDeGolem = null;
+        if (type == EntityType.IRON_GOLEM) {
+            ovoDeGolem = EggGolem.load();
+        }
+
+        for (ItemStack item : chest.getInventory().getContents()) {
+            if (item == null) continue;
+
+            // Se o spawner for de Iron Golem, usamos a verificação da sua classe EggGolem
+            if (type == EntityType.IRON_GOLEM && ovoDeGolem != null) {
+                if (ovoDeGolem.hasEgg(item)) {
+                    eggCount += item.getAmount();
+                }
+                continue; // Pula para o próximo item do baú
+            }
+
+            // Se for um spawner de outro mob (zumbi, esqueleto, etc), usa a lógica Vanilla
+            if (item.getType() != Material.MONSTER_EGG) continue;
+            if (item.getData().getData() == (byte) expectedData) {
+                eggCount += item.getAmount();
+            }
+        }
+
+        return eggCount;
+    }
+
 }

@@ -1,12 +1,12 @@
 package com.github.jpmcodes.spawner.data.models;
 
-import lombok.AllArgsConstructor;
+import java.util.UUID;
+import lombok.Generated;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
-import java.util.UUID;
-
-@AllArgsConstructor
+@RequiredArgsConstructor
 @Getter
 @Setter
 public class CustomPlayer {

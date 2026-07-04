@@ -5,9 +5,9 @@ import lombok.Getter;
 import lombok.Setter;
 import org.bukkit.inventory.ItemStack;
 
-@AllArgsConstructor
 @Getter
 @Setter
+@AllArgsConstructor
 public class DropModel {
     private ItemStack item;
     private double chance;

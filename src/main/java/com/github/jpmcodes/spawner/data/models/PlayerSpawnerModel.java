@@ -6,18 +6,17 @@ import lombok.Setter;
 
 import java.util.List;
 
-@AllArgsConstructor
 @Getter
 @Setter
+@AllArgsConstructor
 public class PlayerSpawnerModel {
     private final CustomPlayer player;
     private List<SpawnerModel> spawners;
-
     public boolean hasSpawners() {
-        return spawners != null && !spawners.isEmpty();
+        return (this.spawners != null && !this.spawners.isEmpty());
     }
 
     public void add(SpawnerModel spawner) {
-        spawners.add(spawner);
+        this.spawners.add(spawner);
     }
 }

@@ -5,18 +5,16 @@ import com.github.jpmcodes.spawner.data.models.SpawnerModel;
 import com.github.jpmcodes.spawner.data.models.drop.DropModel;
 import com.github.jpmcodes.spawner.utils.Configs;
 import com.github.jpmcodes.spawner.utils.ItemBuilder;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-
 public class SpawnerFactory {
-
     private final Configs spawnerConfig;
     private final JSpawnerPlugin plugin;
 
@@ -26,100 +24,121 @@ public class SpawnerFactory {
     }
 
     public void load() {
-        if (!plugin.getSpawnerCache().isEmpty()) {
-            plugin.getSpawnerCache().getCachedElements().clear();
+        if (!this.plugin.getSpawnerCache().isEmpty()) {
+            this.plugin.getSpawnerCache().getCachedElements().clear();
         }
 
         loadSpawners();
     }
 
     private void loadSpawners() {
-        for (String path : spawnerConfig.getConfig().getConfigurationSection("spawners").getKeys(false)) {
-            ConfigurationSection section = spawnerConfig.getConfig().getConfigurationSection("spawners." + path);
+        for (String path : this.spawnerConfig.getConfig().getConfigurationSection("spawners").getKeys(false)) {
+            ConfigurationSection section = this.spawnerConfig.getConfig().getConfigurationSection("spawners." + path);
             EntityType type = EntityType.valueOf(section.getString("type").toUpperCase());
 
-            // Load drops
             List<DropModel> drops = new LinkedList<>();
 
-            // Pega a lista de mapas do YAML
             List<Map<?, ?>> mapList = section.getMapList("drops.list");
 
             for (Map<?, ?> rawMap : mapList) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> map = (Map<String, Object>) rawMap;
-                // Lendo os valores obrigatórios
-                Object materialObject = map.get("material");
-                int minAmount = (int) map.getOrDefault("min-amount", 1);
-                int maxAmount = (int) map.getOrDefault("max-amount", 1);
+                ItemStack dropItem;
 
-                // Cuidado com números quebrados no YAML, o Bukkit pode ler como Double ou Integer.
-                // Usar (Number) e depois .doubleValue() evita erros de Cast.
-                double chance = map.containsKey("chance") ? ((Number) map.get("chance")).doubleValue() : 1.0;
+                if (rawMap.containsKey("iteminfo")) {
+                    String itemInfo = String.valueOf(rawMap.get("iteminfo"));
+                    dropItem = parseItemInfo(itemInfo);
+                } else {
+                    Object materialObject = rawMap.get("material");
 
-                // Lendo os valores opcionais (podem ser nulos)
-                String name = map.containsKey("name") ? (String) map.get("name") : null;
+                    String name = rawMap.containsKey("name") ? (String) rawMap.get("name") : null;
 
-                List<String> lore = new ArrayList<>();
-                if (map.containsKey("lore")) {
-                    lore = (List<String>) map.get("lore");
-                }
+                    short durabilidade = rawMap.containsKey("durability") ? ((Number) rawMap.get("durability")).shortValue()
+                            : 0;
 
-                List<String> enchants = new ArrayList<>();
-                if (map.containsKey("enchants")) {
-                    enchants = (List<String>) map.get("enchants");
-                }
+                    List<String> lore = new ArrayList<>();
+                    if (rawMap.containsKey("lore")) {
+                        lore = (List<String>) rawMap.get("lore");
+                    }
 
-                // --- INÍCIO DA CORREÇÃO DO MATERIAL ---
-                Material material = null;
-                if (materialObject != null) {
-                    String materialString = String.valueOf(materialObject);
+                    List<String> enchants = new ArrayList<>();
+                    if (rawMap.containsKey("enchants")) {
+                        enchants = (List<String>) rawMap.get("enchants");
+                    }
 
-                    // Tenta pelo nome da String
-                    material = Material.getMaterial(materialString.toUpperCase());
+                    Material material = null;
+                    if (materialObject != null) {
+                        String materialString = String.valueOf(materialObject);
 
-                    // Se for nulo, tenta converter para ID numérico (compatível com 1.5.2)
-                    if (material == null) {
-                        try {
-                            int id = Integer.parseInt(materialString);
-                            material = Material.getMaterial(id);
-                        } catch (NumberFormatException ignored) {
+                        material = Material.getMaterial(materialString.toUpperCase());
+
+                        if (material == null) {
+                            try {
+                                int id = Integer.parseInt(materialString);
+                                material = Material.getMaterial(id);
+                            } catch (NumberFormatException ignored) {
+                            }
                         }
                     }
+
+                    if (material == null) {
+                        throw new IllegalArgumentException("Material invalido no YAML: " + materialObject);
+                    }
+
+                    ItemBuilder builder = new ItemBuilder(material);
+
+                    if (name != null) {
+                        builder.name(name);
+                    }
+
+                    if (lore != null && !lore.isEmpty()) {
+                        builder.lore(lore);
+                    }
+
+                    if (enchants != null && !enchants.isEmpty()) {
+                        builder.addEnchants(enchants);
+                    }
+
+                    if (durabilidade != 0) {
+                        builder.durability(durabilidade);
+                    }
+
+                    dropItem = builder.build();
                 }
 
-                if (material == null) {
-                    throw new IllegalArgumentException("Material invalido no YAML: " + materialObject);
-                }
-                // --- FIM DA CORREÇÃO DO MATERIAL ---
-                ItemBuilder builder = new ItemBuilder(material);
+                int minAmount = rawMap.containsKey("min-amount") ? ((Number) rawMap.get("min-amount")).intValue() : 1;
+                int maxAmount = rawMap.containsKey("max-amount") ? ((Number) rawMap.get("max-amount")).intValue() : 1;
 
-                if (name != null) {
-                    builder.name(name);
-                }
+                double chance = rawMap.containsKey("chance") ? ((Number) rawMap.get("chance")).doubleValue() : 1.0D;
 
-                if (lore != null && !lore.isEmpty()) {
-                    builder.lore(lore);
-                }
-
-                if (enchants != null && !enchants.isEmpty()) {
-                    builder.addEnchants(enchants);
-                }
-
-                ItemStack dropItem = builder.build();
-
-                // Cria o seu modelo de drop (ajuste de acordo com o construtor da sua classe DropModel)
                 DropModel drop = new DropModel(dropItem, chance, minAmount, maxAmount);
                 drops.add(drop);
             }
 
-            plugin.getSpawnerCache().addCachedElements(
-                    new SpawnerModel(
-                            path,
-                            type,
-                            drops,
-                            null
-                    )
-            );
+            double mcmmoXp = section.getDouble("mcmmo-xp", 0.0D);
+
+            this.plugin.getSpawnerCache().addCachedElements(new SpawnerModel(path, type, drops, mcmmoXp, null, null));
         }
+    }
+
+    private ItemStack parseItemInfo(String itemInfo) {
+        String[] parts = itemInfo.split(":");
+        String materialName = parts[0].trim();
+        Material material = Material.getMaterial(materialName.toUpperCase());
+
+        if (material == null) {
+            try {
+                material = Material.getMaterial(Integer.parseInt(materialName));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        if (material == null) {
+            throw new IllegalArgumentException("Material invalido no YAML: " + itemInfo);
+        }
+
+        short durability = 0;
+        if (parts.length > 1) {
+            durability = Short.parseShort(parts[1].trim());
+        }
+        return new ItemStack(material, 1, durability);
     }
 }

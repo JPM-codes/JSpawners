@@ -1,15 +1,9 @@
 package com.github.jpmcodes.spawner.utils;
 
 import com.github.jpmcodes.spawner.JSpawnerPlugin;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
-
 import java.util.List;
-import java.util.stream.Collectors;
+import lombok.Generated;
 
-@RequiredArgsConstructor
-@Getter
 public enum Messages {
     HELP("help"),
     NO_PERMISSION("no-permission"),
@@ -30,11 +24,21 @@ public enum Messages {
 
     private final String path;
 
+    @Generated
+    Messages(String path) {
+        this.path = path;
+    }
+
+    @Generated
+    public String getPath() {
+        return this.path;
+    }
+
     public String getMessage() {
-        return JSpawnerPlugin.getInstance().getMessagesConfig().getConfig().getString(path, "Message not found").replace("&", "§");
+        return JSpawnerPlugin.getInstance().getConfigCache().getMessages().getMessage(this.path);
     }
 
     public List<String> getMessageList() {
-        return JSpawnerPlugin.getInstance().getMessagesConfig().getConfig().getStringList(path).stream().map(s -> s.replace("&", "§")).collect(Collectors.toList());
+        return JSpawnerPlugin.getInstance().getConfigCache().getMessages().getMessageList(this.path);
     }
 }

@@ -1,71 +1,79 @@
 package com.github.jpmcodes.spawner.listeners;
 
 import com.github.jpmcodes.spawner.JSpawnerPlugin;
+import com.github.jpmcodes.spawner.config.PluginConfigSnapshot;
+import com.github.jpmcodes.spawner.tasks.SpawnerTask;
 import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
-import com.sk89q.worldguard.protection.ApplicableRegionSet;
 import com.sk89q.worldguard.protection.managers.RegionManager;
-import com.sk89q.worldguard.protection.regions.ProtectedRegion;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+import lombok.Getter;
 import org.bukkit.Location;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.CreatureSpawnEvent;
-import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
 import org.bukkit.plugin.Plugin;
 
-import java.util.List;
-
-@RequiredArgsConstructor
+@Getter
 public class SpawnMobsListener implements Listener {
-
     private final JSpawnerPlugin plugin;
+    private WorldGuardPlugin wgPlugin;
 
-    @EventHandler
+    public SpawnMobsListener(JSpawnerPlugin plugin) {
+        this.plugin = plugin;
+        Plugin wg = plugin.getServer().getPluginManager().getPlugin("WorldGuard");
+        if (wg instanceof WorldGuardPlugin) {
+            this.wgPlugin = (WorldGuardPlugin) wg;
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onSpawn(CreatureSpawnEvent e) {
-        // Verifica se a opção de bloquear está ativada
-        if (!plugin.getConfigs().getBoolean("bloquear-mobs-nascerem")) return;
-
-        if (e.getSpawnReason() == SpawnReason.SPAWNER || e.getSpawnReason() == SpawnReason.SPAWNER_EGG) {
+        PluginConfigSnapshot cfg = this.plugin.getConfigCache().getPlugin();
+        if (!cfg.isBloquearMobsNascerem()) {
+            return;
+        }
+        if (SpawnerTask.isSpawning) {
+            e.setCancelled(true); // cancela para o PlotSquared não processar
+            e.setCancelled(false); // mas deixa spawnar mesmo assim
+        }
+        if (e.getSpawnReason() == CreatureSpawnEvent.SpawnReason.SPAWNER
+                || e.getSpawnReason() == CreatureSpawnEvent.SpawnReason.SPAWNER_EGG
+                || e.getSpawnReason() == CreatureSpawnEvent.SpawnReason.CUSTOM) {
             return;
         }
 
         Location loc = e.getLocation();
         String worldName = loc.getWorld().getName();
 
-        // 1. Verificar por Mundo
-        List<String> blockedWorlds = plugin.getConfigs().getStringList("mundo-mobs");
-        if (blockedWorlds != null) {
-            for (String w : blockedWorlds) {
-                if (w != null && !w.isEmpty() && w.equalsIgnoreCase(worldName)) {
-                    e.setCancelled(true);
-                    return;
-                }
-            }
-        }
-
-        // 2. Verificar por Region (WorldGuard)
-        List<String> blockedRegions = plugin.getConfigs().getStringList("region-mobs");
-        if (blockedRegions != null && !blockedRegions.isEmpty()) {
-            if (isInsideBlockedRegion(loc, blockedRegions)) {
+        List<String> blockedWorlds = cfg.getBlockedWorlds();
+        for (String w : blockedWorlds) {
+            if (w.equalsIgnoreCase(worldName)) {
                 e.setCancelled(true);
                 return;
             }
         }
+
+        List<String> blockedRegions = cfg.getBlockedRegions();
+        if (!blockedRegions.isEmpty() && isInsideBlockedRegion(loc, blockedRegions)) {
+            e.setCancelled(true);
+        }
     }
 
     private boolean isInsideBlockedRegion(Location loc, List<String> blockedRegions) {
-        Plugin wgPlugin = plugin.getServer().getPluginManager().getPlugin("WorldGuard");
-        if (wgPlugin instanceof WorldGuardPlugin) {
-            WorldGuardPlugin wg = (WorldGuardPlugin) wgPlugin;
-            RegionManager rm = wg.getRegionManager(loc.getWorld());
-            if (rm != null) {
-                ApplicableRegionSet set = rm.getApplicableRegions(loc);
-                for (ProtectedRegion region : set) {
-                    for (String blocked : blockedRegions) {
-                        if (blocked != null && !blocked.isEmpty() && blocked.equalsIgnoreCase(region.getId())) {
-                            return true;
-                        }
-                    }
+        if (this.wgPlugin == null) {
+            return false;
+        }
+
+        RegionManager regionManager = this.wgPlugin.getRegionManager(loc.getWorld());
+        if (regionManager == null) {
+            return false;
+        }
+
+        for (com.sk89q.worldguard.protection.regions.ProtectedRegion region : regionManager.getApplicableRegions(loc)) {
+            for (String blocked : blockedRegions) {
+                if (blocked.equalsIgnoreCase(region.getId())) {
+                    return true;
                 }
             }
         }

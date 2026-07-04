@@ -67,13 +67,6 @@
             <systemPath>${project.basedir}/libs/server.jar</systemPath>
         </dependency>
         <dependency>
-            <groupId>autoitem</groupId>
-            <artifactId>autoitem</artifactId>
-            <version>1.5.2</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/libs/JAutoItem-1.0-SNAPSHOT.jar</systemPath>
-        </dependency>
-        <dependency>
             <groupId>worldguard</groupId>
             <artifactId>worldguard</artifactId>
             <version>1.5.2</version>
@@ -86,6 +79,27 @@
             <version>1.5.2</version>
             <scope>system</scope>
             <systemPath>${project.basedir}/libs/WorldEdit.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>chestshop</groupId>
+            <artifactId>chestshop</artifactId>
+            <version>1.5.2</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/ChestShop.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>jegggolem</groupId>
+            <artifactId>jegggolem</artifactId>
+            <version>1.5.2-SNAPSHOT</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/JEggGolem-1.0-SNAPSHOT.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>mcmmo</groupId>
+            <artifactId>mcmmo</artifactId>
+            <version>1.5.2</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/mcMMO.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

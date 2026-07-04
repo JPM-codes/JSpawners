@@ -3,7 +3,6 @@ package com.github.jpmcodes.spawner.data.storage;
 import com.github.jpmcodes.spawner.JSpawnerPlugin;
 import com.github.jpmcodes.spawner.data.DatabaseProvider;
 import com.github.jpmcodes.spawner.data.models.CustomPlayer;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -12,7 +11,6 @@ import java.util.List;
 import java.util.UUID;
 
 public class CustomPlayerStorage {
-
     private final JSpawnerPlugin plugin;
     private final DatabaseProvider database;
 
@@ -24,8 +22,8 @@ public class CustomPlayerStorage {
 
     private void createTable() {
         String sql = "CREATE TABLE IF NOT EXISTS players(player_uuid VARCHAR(36) PRIMARY KEY, player_name VARCHAR(255))";
-        try (Connection conn = database.getConnection();
-             PreparedStatement statement = conn.prepareStatement(sql)) {
+        try (Connection conn = this.database.getConnection();
+                PreparedStatement statement = conn.prepareStatement(sql)) {
             statement.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -35,20 +33,17 @@ public class CustomPlayerStorage {
     public void loadAll() {
         String sql = "SELECT * FROM players";
 
-        try (Connection connection = database.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql);
-             ResultSet resultSet = statement.executeQuery()) {
+        try (Connection connection = this.database.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet resultSet = statement.executeQuery()) {
 
             while (resultSet.next()) {
                 UUID playerUUID = UUID.fromString(resultSet.getString("player_uuid"));
                 String playerName = resultSet.getString("player_name");
 
-                plugin.getCustomPlayerCache().addCachedElements(
-                        new CustomPlayer(
-                                playerUUID,
-                                playerName
-                        )
-                );
+                this.plugin.getCustomPlayerCache()
+                        .addCachedElements(new CustomPlayer(playerUUID, playerName));
+
             }
 
         } catch (SQLException e) {
@@ -57,19 +52,18 @@ public class CustomPlayerStorage {
     }
 
     public void saveAll() {
-        List<CustomPlayer> players = plugin.getCustomPlayerCache().getCachedElements();
+        List<CustomPlayer> players = this.plugin.getCustomPlayerCache().getCachedElements();
 
-        if (players.isEmpty()) return;
-
-        boolean useMySQL = database.isUseMySQL();
+        if (players.isEmpty())
+            return;
+        boolean useMySQL = this.database.isUseMySQL();
 
         String sql = useMySQL
-                ? "INSERT INTO players (player_uuid, player_name) VALUES (?, ?) " +
-                "ON DUPLICATE KEY UPDATE player_name = ?"
+                ? "INSERT INTO players (player_uuid, player_name) VALUES (?, ?) ON DUPLICATE KEY UPDATE player_name = ?"
                 : "REPLACE INTO players (player_uuid, player_name) VALUES (?, ?)";
 
-        try (Connection connection = database.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (Connection connection = this.database.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
 
             for (CustomPlayer player : players) {
                 statement.setString(1, player.getUuid().toString());
@@ -83,21 +77,19 @@ public class CustomPlayerStorage {
             }
 
             statement.executeBatch();
-
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
     public void save(CustomPlayer customPlayer) {
-        boolean useMySQL = database.isUseMySQL();
+        boolean useMySQL = this.database.isUseMySQL();
         String sql = useMySQL
-                ? "INSERT INTO players (player_uuid, player_name) VALUES (?, ?) " +
-                "ON DUPLICATE KEY UPDATE player_name = ?"
+                ? "INSERT INTO players (player_uuid, player_name) VALUES (?, ?) ON DUPLICATE KEY UPDATE player_name = ?"
                 : "REPLACE INTO players (player_uuid, player_name) VALUES (?, ?)";
 
-        try (Connection connection = database.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (Connection connection = this.database.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, customPlayer.getUuid().toString());
             statement.setString(2, customPlayer.getName());
             if (useMySQL) {
@@ -112,12 +104,11 @@ public class CustomPlayerStorage {
     public void delete(CustomPlayer customPlayer) {
         String sql = "DELETE FROM players WHERE player_uuid = ?";
 
-        try (Connection connection = database.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (Connection connection = this.database.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setString(1, customPlayer.getUuid().toString());
             statement.executeUpdate();
-
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
